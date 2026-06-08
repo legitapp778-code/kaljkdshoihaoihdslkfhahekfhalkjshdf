@@ -116,105 +116,104 @@
 
       <!-- GAME BOARD -->
       <section class="board">
-        <div class="board__rows">
-          
-          <!-- Row 1 -->
-          <div class="board__row" data-row="1">
-            <img class="board__row-num-img" src="assets/1.png" alt="1">
-            <div class="board__cell" data-row="1" data-bird="tota">
-              <img class="cell-bg" src="assets/emp_design.png" alt="">
-              <img class="bird" src="assets/tota.png" alt="TOTA" data-base="tota">
-              <span class="bird-lbl">TOTA</span>
-              <span class="cell-check">✓</span>
-              <span class="cell-bet"></span>
-            </div>
-            <div class="board__diamond">◆</div>
-            <div class="board__cell" data-row="1" data-bird="mena">
-              <img class="cell-bg" src="assets/emp_design.png" alt="">
-              <img class="bird" src="assets/mena.png" alt="MENA" data-base="mena">
-              <span class="bird-lbl">MENA</span>
-              <span class="cell-check">✓</span>
-              <span class="cell-bet"></span>
+        <div class="board__columns">
+          <!-- Numbers Column -->
+          <div class="board__col board__col--nums">
+            <img class="row-num-img" src="assets/1.png" alt="1">
+            <img class="row-num-img" src="assets/2.png" alt="2">
+            <img class="row-num-img" src="assets/3.png" alt="3">
+            <img class="row-num-img" src="assets/4.png" alt="4">
+            <img class="row-num-img" src="assets/5.png" alt="5">
+          </div>
+
+          <!-- Tota Reel Column -->
+          <div class="board__col board__col--reel">
+            <div class="reel-track" id="reel-tota">
+              <div class="board__cell" data-row="1" data-bird="tota">
+                <img class="cell-bg" src="assets/emp_design.png" alt="">
+                <img class="bird" src="assets/tota.png" alt="TOTA" data-base="tota">
+                <span class="bird-lbl">TOTA</span>
+                <span class="cell-check">✓</span>
+                <span class="cell-bet"></span>
+              </div>
+              <div class="board__cell" data-row="2" data-bird="tota">
+                <img class="cell-bg" src="assets/emp_design.png" alt="">
+                <img class="bird" src="assets/tota.png" alt="TOTA" data-base="tota">
+                <span class="bird-lbl">TOTA</span>
+                <span class="cell-check">✓</span>
+                <span class="cell-bet"></span>
+              </div>
+              <div class="board__cell" data-row="3" data-bird="tota">
+                <img class="cell-bg" src="assets/emp_design.png" alt="">
+                <img class="bird" src="assets/tota.png" alt="TOTA" data-base="tota">
+                <span class="bird-lbl">TOTA</span>
+                <span class="cell-check">✓</span>
+                <span class="cell-bet"></span>
+              </div>
+              <div class="board__cell" data-row="4" data-bird="tota">
+                <img class="cell-bg" src="assets/emp_design.png" alt="">
+                <img class="bird" src="assets/tota.png" alt="TOTA" data-base="tota">
+                <span class="bird-lbl">TOTA</span>
+                <span class="cell-check">✓</span>
+                <span class="cell-bet"></span>
+              </div>
+              <div class="board__cell" data-row="5" data-bird="tota">
+                <img class="cell-bg" src="assets/emp_design.png" alt="">
+                <img class="bird" src="assets/tota.png" alt="TOTA" data-base="tota">
+                <span class="bird-lbl">TOTA</span>
+                <span class="cell-check">✓</span>
+                <span class="cell-bet"></span>
+              </div>
             </div>
           </div>
 
-          <!-- Row 2 -->
-          <div class="board__row" data-row="2">
-            <img class="board__row-num-img" src="assets/2.png" alt="2">
-            <div class="board__cell" data-row="2" data-bird="tota">
-              <img class="cell-bg" src="assets/emp_design.png" alt="">
-              <img class="bird" src="assets/tota.png" alt="TOTA" data-base="tota">
-              <span class="bird-lbl">TOTA</span>
-              <span class="cell-check">✓</span>
-              <span class="cell-bet"></span>
-            </div>
+          <!-- Diamond Column -->
+          <div class="board__col board__col--diamonds">
             <div class="board__diamond">◆</div>
-            <div class="board__cell" data-row="2" data-bird="mena">
-              <img class="cell-bg" src="assets/emp_design.png" alt="">
-              <img class="bird" src="assets/mena.png" alt="MENA" data-base="mena">
-              <span class="bird-lbl">MENA</span>
-              <span class="cell-check">✓</span>
-              <span class="cell-bet"></span>
-            </div>
+            <div class="board__diamond">◆</div>
+            <div class="board__diamond">◆</div>
+            <div class="board__diamond">◆</div>
+            <div class="board__diamond">◆</div>
           </div>
 
-          <!-- Row 3 -->
-          <div class="board__row" data-row="3">
-            <img class="board__row-num-img" src="assets/3.png" alt="3">
-            <div class="board__cell" data-row="3" data-bird="tota">
-              <img class="cell-bg" src="assets/emp_design.png" alt="">
-              <img class="bird" src="assets/tota.png" alt="TOTA" data-base="tota">
-              <span class="bird-lbl">TOTA</span>
-              <span class="cell-check">✓</span>
-              <span class="cell-bet"></span>
-            </div>
-            <div class="board__diamond">◆</div>
-            <div class="board__cell" data-row="3" data-bird="mena">
-              <img class="cell-bg" src="assets/emp_design.png" alt="">
-              <img class="bird" src="assets/mena.png" alt="MENA" data-base="mena">
-              <span class="bird-lbl">MENA</span>
-              <span class="cell-check">✓</span>
-              <span class="cell-bet"></span>
-            </div>
-          </div>
-
-          <!-- Row 4 -->
-          <div class="board__row" data-row="4">
-            <img class="board__row-num-img" src="assets/4.png" alt="4">
-            <div class="board__cell" data-row="4" data-bird="tota">
-              <img class="cell-bg" src="assets/emp_design.png" alt="">
-              <img class="bird" src="assets/tota.png" alt="TOTA" data-base="tota">
-              <span class="bird-lbl">TOTA</span>
-              <span class="cell-check">✓</span>
-              <span class="cell-bet"></span>
-            </div>
-            <div class="board__diamond">◆</div>
-            <div class="board__cell" data-row="4" data-bird="mena">
-              <img class="cell-bg" src="assets/emp_design.png" alt="">
-              <img class="bird" src="assets/mena.png" alt="MENA" data-base="mena">
-              <span class="bird-lbl">MENA</span>
-              <span class="cell-check">✓</span>
-              <span class="cell-bet"></span>
-            </div>
-          </div>
-
-          <!-- Row 5 -->
-          <div class="board__row" data-row="5">
-            <img class="board__row-num-img" src="assets/5.png" alt="5">
-            <div class="board__cell" data-row="5" data-bird="tota">
-              <img class="cell-bg" src="assets/emp_design.png" alt="">
-              <img class="bird" src="assets/tota.png" alt="TOTA" data-base="tota">
-              <span class="bird-lbl">TOTA</span>
-              <span class="cell-check">✓</span>
-              <span class="cell-bet"></span>
-            </div>
-            <div class="board__diamond">◆</div>
-            <div class="board__cell" data-row="5" data-bird="mena">
-              <img class="cell-bg" src="assets/emp_design.png" alt="">
-              <img class="bird" src="assets/mena.png" alt="MENA" data-base="mena">
-              <span class="bird-lbl">MENA</span>
-              <span class="cell-check">✓</span>
-              <span class="cell-bet"></span>
+          <!-- Mena Reel Column -->
+          <div class="board__col board__col--reel">
+            <div class="reel-track" id="reel-mena">
+              <div class="board__cell" data-row="1" data-bird="mena">
+                <img class="cell-bg" src="assets/emp_design.png" alt="">
+                <img class="bird" src="assets/mena.png" alt="MENA" data-base="mena">
+                <span class="bird-lbl">MENA</span>
+                <span class="cell-check">✓</span>
+                <span class="cell-bet"></span>
+              </div>
+              <div class="board__cell" data-row="2" data-bird="mena">
+                <img class="cell-bg" src="assets/emp_design.png" alt="">
+                <img class="bird" src="assets/mena.png" alt="MENA" data-base="mena">
+                <span class="bird-lbl">MENA</span>
+                <span class="cell-check">✓</span>
+                <span class="cell-bet"></span>
+              </div>
+              <div class="board__cell" data-row="3" data-bird="mena">
+                <img class="cell-bg" src="assets/emp_design.png" alt="">
+                <img class="bird" src="assets/mena.png" alt="MENA" data-base="mena">
+                <span class="bird-lbl">MENA</span>
+                <span class="cell-check">✓</span>
+                <span class="cell-bet"></span>
+              </div>
+              <div class="board__cell" data-row="4" data-bird="mena">
+                <img class="cell-bg" src="assets/emp_design.png" alt="">
+                <img class="bird" src="assets/mena.png" alt="MENA" data-base="mena">
+                <span class="bird-lbl">MENA</span>
+                <span class="cell-check">✓</span>
+                <span class="cell-bet"></span>
+              </div>
+              <div class="board__cell" data-row="5" data-bird="mena">
+                <img class="cell-bg" src="assets/emp_design.png" alt="">
+                <img class="bird" src="assets/mena.png" alt="MENA" data-base="mena">
+                <span class="bird-lbl">MENA</span>
+                <span class="cell-check">✓</span>
+                <span class="cell-bet"></span>
+              </div>
             </div>
           </div>
 
@@ -386,6 +385,7 @@
     <div class="win-overlay__content">
       <div class="win-overlay__crown">👑</div>
       <h2 class="win-overlay__title">BIG WIN!</h2>
+      <div id="winRowsDisplay" style="font-size: 16px; font-weight: bold; margin-bottom: 12px; text-shadow: 0 1px 3px rgba(0,0,0,0.5);"></div>
       <div class="win-overlay__amount" id="winAmtDisplay">₹0</div>
       <button class="win-overlay__btn" id="winCloseBtn">PLAY AGAIN</button>
     </div>

@@ -211,14 +211,14 @@ let spinInterval = null;
 
 function startTimer() {
   clearInterval(timerInterval);
-  STATE.roundTimer = 30;
+  STATE.roundTimer = 20;
   STATE.phase = 'BETTING';
   renderTimer();
   timerInterval = setInterval(() => {
     STATE.roundTimer--;
     renderTimer();
     
-    if (STATE.roundTimer === 20) {
+    if (STATE.roundTimer === 10) {
       startSpinPhase();
     }
     

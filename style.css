@@ -457,18 +457,19 @@ body {
 /* Chips */
 .bet-panel__chips {
   display: flex;
-  gap: 3px;
+  gap: 4px;
   flex-shrink: 0;
 }
 
 .chip {
   flex: 1;
-  padding: 4px 0;
+  min-width: 0;
+  padding: 8px 0;
   border: 1px solid rgba(201, 160, 76, 0.5);
-  border-radius: 4px;
+  border-radius: 6px;
   background: linear-gradient(180deg, white 0%, var(--cream) 100%);
   font-family: var(--font-sora);
-  font-size: 10px;
+  font-size: clamp(9px, 2vw, 13px);
   font-weight: 800;
   color: var(--text-mid);
   cursor: pointer;
@@ -495,11 +496,11 @@ body {
 
 .bet-panel__input {
   width: 100%;
-  padding: 4px 6px;
+  padding: 8px 10px;
   border: 1px solid rgba(201, 160, 76, 0.4);
-  border-radius: 4px;
+  border-radius: 6px;
   font-family: var(--font-sora);
-  font-size: 10px;
+  font-size: clamp(10px, 2.5vw, 13px);
   font-weight: 700;
   color: var(--text-dark);
   background: white;

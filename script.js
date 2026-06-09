@@ -103,7 +103,6 @@ function init() {
 function resetCellVisual(cell) {
   const bird = cell.querySelector('.bird');
   const lbl = cell.querySelector('.bird-lbl');
-  const check = cell.querySelector('.cell-check');
 
   // Bird: invisible initially
   if (bird) {
@@ -114,7 +113,6 @@ function resetCellVisual(cell) {
 
   // Labels hidden
   if (lbl) { lbl.style.opacity = '0'; lbl.style.display = 'none'; }
-  if (check) { check.style.opacity = '0'; check.style.display = 'none'; }
 
   // Clear data attributes
   cell.removeAttribute('data-active');
@@ -163,6 +161,11 @@ function placeBet(bird, row) {
   STATE.balance -= diff;
   STATE.bets[bird] = { row, amount: amt };
   showToast(`₹${amt} on ${bird.toUpperCase()} Row ${row}`);
+  
+  DOM.bettingCells[bird].forEach(c => c.removeAttribute('data-active'));
+  const activeCell = DOM.bettingCells[bird].find(c => +c.dataset.row === row);
+  if (activeCell) activeCell.setAttribute('data-active', 'true');
+
   renderBoard();
   updatePossibleWin();
 }
@@ -183,20 +186,15 @@ function renderBoard() {
         betBadge.style.display = hasBet ? 'block' : 'none';
       }
 
-      cell.setAttribute('data-active', String(hasBet));
-
       if (STATE.phase === 'BETTING') {
         const lbl = cell.querySelector('.bird-lbl');
-        const check = cell.querySelector('.cell-check');
 
         if (hasBet) {
           if (lbl) { lbl.style.opacity = '1'; lbl.style.display = 'block'; }
-          if (check) { check.style.opacity = '1'; check.style.display = 'flex'; }
         } else {
           if (!cell.classList.contains('cell--winner')) {
             if (lbl) { lbl.style.opacity = '0'; lbl.style.display = 'none'; }
           }
-          if (check) { check.style.opacity = '0'; check.style.display = 'none'; }
         }
       }
     });
@@ -223,8 +221,11 @@ function startTimer() {
     }
     
     if (STATE.roundTimer <= 0) {
+      clearInterval(timerInterval);
       stopSpinPhaseAndReveal();
-      resetRound();
+      setTimeout(() => {
+        resetRound();
+      }, 2000);
     }
   }, 1000);
 }
@@ -256,15 +257,12 @@ function startSpinPhase() {
 
   // Prepare all cells for spinning (hide birds and labels)
   allCells.forEach(cell => {
-    cell.removeAttribute('data-active');
     cell.classList.remove('cell--winner');
     cell.removeAttribute('data-win');
 
     const lbl = cell.querySelector('.bird-lbl');
-    const check = cell.querySelector('.cell-check');
     const betBadge = cell.querySelector('.cell-bet');
     if (lbl) { lbl.style.opacity = '0'; lbl.style.display = 'none'; }
-    if (check) { check.style.opacity = '0'; check.style.display = 'none'; }
     if (betBadge) { betBadge.style.display = 'none'; }
 
     const birdImg = cell.querySelector('.bird');
@@ -319,11 +317,22 @@ function revealWinningBird(cell) {
   if (!birdImg) return;
 
   birdImg.src = `assets/${bird}.png`;
-  cell.classList.add('cell--winner');
   cell.setAttribute('data-win', 'true');
 
-  birdImg.style.opacity = '1';
-  birdImg.style.transform = 'translate(-50%, -50%) scale(1)';
+  birdImg.style.opacity = '';
+  birdImg.style.transform = '';
+  birdImg.style.filter = '';
+
+  const leftHalf = document.createElement('div');
+  leftHalf.className = 'card-half card-half--left';
+  const rightHalf = document.createElement('div');
+  rightHalf.className = 'card-half card-half--right';
+  const flash = document.createElement('div');
+  flash.className = 'shatter-flash';
+
+  cell.appendChild(leftHalf);
+  cell.appendChild(rightHalf);
+  cell.appendChild(flash);
 
   if (lbl) {
     lbl.style.opacity = '1';
@@ -362,10 +371,11 @@ function resetRound() {
   
   DOM.allCells.forEach(cell => {
     cell.removeAttribute('data-active');
-    const check = cell.querySelector('.cell-check');
     const betBadge = cell.querySelector('.cell-bet');
-    if (check) { check.style.opacity = '0'; check.style.display = 'none'; }
     if (betBadge) { betBadge.style.display = 'none'; betBadge.textContent = ''; }
+    
+    const tempElems = cell.querySelectorAll('.card-half, .shatter-flash');
+    tempElems.forEach(el => el.remove());
   });
 
   renderBoard();

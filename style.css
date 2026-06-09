@@ -1074,7 +1074,7 @@ body.sidebar-open .sidebar-left {
   .board,
   .controls,
   .game-header {
-    max-width: 400px;
+    max-width: 500px;
     margin: 0 auto;
   }
 
@@ -2193,29 +2193,15 @@ input:checked+.toggle-slider:before {
   .game-scroll .board {
     min-height: 0;
     flex: 1 1 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
   }
   
   .game-scroll .board__columns {
     gap: 4px;
-    height: 100%;
-    justify-content: center;
-  }
-
-  .game-scroll .board__col {
-    min-width: 0;
-    width: auto;
   }
   
   .game-scroll .board__cell {
     min-height: 0;
     flex: 1 1 0;
-    aspect-ratio: 1 / 1;
-    width: auto;
-    max-width: 100%;
-    margin: 0;
   }
   
   .game-scroll .controls {

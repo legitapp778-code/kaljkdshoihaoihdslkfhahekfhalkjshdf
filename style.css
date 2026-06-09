@@ -283,27 +283,6 @@ body {
   transition: opacity 0.25s ease-out, transform 0.2s ease-out, filter 0.2s ease-out;
 }
 
-
-/* Bird Label */
-.bird-lbl {
-  position: absolute;
-  bottom: 3px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-family: var(--font-display);
-  font-size: 8px;
-  font-weight: 900;
-  letter-spacing: 0.15em;
-  color: var(--gold-dark);
-  text-shadow: 0 0 4px rgba(201, 160, 76, 0.4);
-  z-index: 7;
-  white-space: nowrap;
-  display: none;
-  opacity: 0;
-}
-
-
-
 /* Bet Badge */
 .cell-bet {
   display: none;
@@ -2121,25 +2100,70 @@ input:checked+.toggle-slider:before {
 }
 
 @keyframes shatterLeft {
-  0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
-  15% { transform: translate(-3%, 0) rotate(-1deg); opacity: 1; }
-  100% { transform: translate(-80%, 20%) rotate(-35deg); opacity: 0; }
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+
+  15% {
+    transform: translate(-3%, 0) rotate(-1deg);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(-80%, 20%) rotate(-35deg);
+    opacity: 0;
+  }
 }
 
 @keyframes shatterRight {
-  0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
-  15% { transform: translate(3%, 0) rotate(1deg); opacity: 1; }
-  100% { transform: translate(80%, 20%) rotate(35deg); opacity: 0; }
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+
+  15% {
+    transform: translate(3%, 0) rotate(1deg);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(80%, 20%) rotate(35deg);
+    opacity: 0;
+  }
 }
 
 @keyframes crackFlash {
-  0% { transform: translate(-50%, -50%) scaleX(0) scaleY(0.5); opacity: 0; }
-  15% { transform: translate(-50%, -50%) scaleX(1.5) scaleY(1.2); opacity: 1; }
-  100% { transform: translate(-50%, -50%) scaleX(0) scaleY(2); opacity: 0; }
+  0% {
+    transform: translate(-50%, -50%) scaleX(0) scaleY(0.5);
+    opacity: 0;
+  }
+
+  15% {
+    transform: translate(-50%, -50%) scaleX(1.5) scaleY(1.2);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(-50%, -50%) scaleX(0) scaleY(2);
+    opacity: 0;
+  }
 }
 
 @keyframes birdEmerge {
-  0% { transform: translate(-50%, -50%) scale(0) rotate(-10deg); opacity: 0; filter: brightness(2); }
-  50% { filter: brightness(1.5); }
-  100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; filter: brightness(1); }
+  0% {
+    transform: translate(-50%, -50%) scale(0) rotate(-10deg);
+    opacity: 0;
+    filter: brightness(2);
+  }
+
+  50% {
+    filter: brightness(1.5);
+  }
+
+  100% {
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+    opacity: 1;
+    filter: brightness(1);
+  }
 }

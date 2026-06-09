@@ -141,8 +141,7 @@ body {
 /* ── MAIN SCROLL ── */
 .main-scroll {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden; /* Never allow scrolling on the main game section */
   padding: 16px 16px 80px 16px;
   display: flex;
   flex-direction: column;
@@ -156,7 +155,8 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 400px;
+  min-height: 0;
+  /* Let flexbox handle height organically so it never overflows */
   background: transparent;
   padding: 0;
 }
@@ -236,7 +236,7 @@ body {
    ══════════════════════════════════════════════════════════ */
 .board__cell {
   flex: 0 0 calc((100% - 32px) / 5);
-  width: 85%;
+  width: 100%;
   margin: 0 auto;
   position: relative;
   border-radius: 10px;
@@ -1079,8 +1079,11 @@ body.sidebar-open .sidebar-left {
   }
 
   .board {
-    min-height: 250px;
-    /* Let it shrink if screen is short */
+    min-height: 0;
+  }
+
+  .board__cell {
+    width: 80%;
   }
 
   /* SIDEBAR LEFT */
@@ -2164,85 +2167,5 @@ input:checked+.toggle-slider:before {
     transform: translate(-50%, -50%) scale(1) rotate(0deg);
     opacity: 1;
     filter: brightness(1);
-  }
-}
-
-/* ══════════════════════════════════════════════════════════
-   MOBILE GAME RESPONSIVENESS
-   ══════════════════════════════════════════════════════════ */
-@media (max-width: 1023px) {
-  .game-scroll {
-    overflow-y: hidden;
-    padding: 8px 8px 65px 8px;
-    gap: 8px;
-  }
-  
-  .game-scroll .top-stats {
-    gap: 4px;
-  }
-  .game-scroll .stat-card {
-    padding: 6px;
-  }
-  .game-scroll .stat-title {
-    font-size: 8px;
-  }
-  .game-scroll .stat-val {
-    font-size: 11px;
-  }
-  
-  .game-scroll .board {
-    min-height: 0;
-    flex: 1 1 0;
-  }
-  
-  .game-scroll .board__columns {
-    gap: 4px;
-  }
-  
-  .game-scroll .board__cell {
-    min-height: 0;
-    flex: 1 1 0;
-  }
-  
-  .game-scroll .controls {
-    gap: 4px;
-    padding-bottom: 8px;
-  }
-  
-  .game-scroll .bet-panel {
-    padding: 6px;
-    gap: 2px;
-  }
-  
-  .game-scroll .bet-panel__hero {
-    width: 32px;
-    height: 32px;
-  }
-  
-  .game-scroll .bet-panel__title-block {
-    font-size: 10px;
-  }
-  
-  .game-scroll .bet-panel__chips {
-    gap: 2px;
-  }
-  
-  .game-scroll .chip {
-    padding: 2px 0;
-    font-size: 10px;
-  }
-  
-  .game-scroll .bet-panel__input {
-    padding: 4px;
-    font-size: 12px;
-  }
-  
-  .game-scroll .bet-btn {
-    padding: 6px;
-    font-size: 10px;
-  }
-  
-  .game-scroll .bet-btn__glow {
-    top: -10%; bottom: -10%;
   }
 }

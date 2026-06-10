@@ -445,9 +445,6 @@ document.addEventListener('DOMContentLoaded', init);
 window.addEventListener('load', () => {
   const preloader = document.getElementById('preloader');
   if (preloader) {
-    // Add a slight delay to let the user appreciate the elite loading screen
-    setTimeout(() => {
-      preloader.classList.add('is-hidden');
-    }, 1200);
+    preloader.classList.add('is-hidden');
   }
 });

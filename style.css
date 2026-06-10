@@ -39,6 +39,10 @@ body {
   color: var(--text-dark);
   font-family: var(--font-sans);
   -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  touch-action: manipulation;
 }
 
 .app {
@@ -269,17 +273,17 @@ body {
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) translateZ(0); /* Hardware accelerate */
   height: 75%;
   width: auto;
   max-width: 45%;
   object-fit: contain;
   z-index: 2;
   pointer-events: none;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
   opacity: 0;
   will-change: transform, opacity;
-  transition: opacity 0.25s ease-out, transform 0.2s ease-out, filter 0.2s ease-out;
+  backface-visibility: hidden;
+  transition: opacity 0.25s ease-out, transform 0.2s ease-out;
 }
 
 /* Bet Badge */
@@ -2076,12 +2080,12 @@ input:checked+.toggle-slider:before {
 
 .card-half--left {
   clip-path: polygon(0% 0%, 50% 0%, 30% 25%, 70% 50%, 30% 75%, 50% 100%, 0% 100%);
-  animation: shatterLeft 1.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  animation: shatterLeft 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
 .card-half--right {
   clip-path: polygon(50% 0%, 100% 0%, 100% 100%, 50% 100%, 30% 75%, 70% 50%, 30% 25%);
-  animation: shatterRight 1.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  animation: shatterRight 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
 .shatter-flash {
@@ -2099,7 +2103,7 @@ input:checked+.toggle-slider:before {
 }
 
 .board__cell[data-win="true"] .bird {
-  animation: birdEmerge 1.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  animation: birdEmerge 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
 @keyframes shatterLeft {

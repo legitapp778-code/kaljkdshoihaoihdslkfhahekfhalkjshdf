@@ -11,7 +11,8 @@ const STATE = {
   roundTimer: 30,
   phase: 'BETTING',
   multiplier: 2.00,
-  winningRows: { tota: null, mena: null }
+  winningRows: { tota: null, mena: null },
+  selectedRows: { tota: null, mena: null }
 };
 
 
@@ -77,8 +78,8 @@ function init() {
     mena: Array.from(document.getElementById('reel-mena').children).slice(0, 5)
   };
 
-  DOM.bettingCells.tota.forEach(c => c.addEventListener('click', () => placeBet('tota', +c.dataset.row)));
-  DOM.bettingCells.mena.forEach(c => c.addEventListener('click', () => placeBet('mena', +c.dataset.row)));
+  DOM.bettingCells.tota.forEach(c => c.addEventListener('click', () => selectRow('tota', +c.dataset.row)));
+  DOM.bettingCells.mena.forEach(c => c.addEventListener('click', () => selectRow('mena', +c.dataset.row)));
 
   if (DOM.winCloseBtn) DOM.winCloseBtn.addEventListener('click', closeWin);
   const winBg = $('.win-overlay__bg');
@@ -128,44 +129,54 @@ function setupPanel(bird, chips, input, btn) {
     chip.addEventListener('click', () => {
       if (STATE.phase !== 'BETTING') return showToast('Betting is locked!');
       STATE.panelBetAmounts[bird] = +chip.dataset.amt;
-      chips.forEach(c => c.classList.remove('chip--selected'));
       chip.classList.add('chip--selected');
       if (input) input.value = '';
+      renderBoard();
       updatePossibleWin();
     });
   });
   if (input) {
     input.addEventListener('input', () => {
-      if (STATE.phase !== 'BETTING') { input.value = ''; return showToast('Betting is locked!'); }
       STATE.panelBetAmounts[bird] = +input.value || 0;
       chips.forEach(c => c.classList.remove('chip--selected'));
+      renderBoard();
       updatePossibleWin();
     });
   }
   if (btn) {
     btn.addEventListener('click', () => {
-      if (STATE.phase !== 'BETTING') return showToast('Betting is locked!');
-      const row = STATE.bets[bird].row;
-      if (!row) return showToast(`Select a card in ${bird.toUpperCase()} column first!`);
-      placeBet(bird, row);
+      placeBet(bird);
     });
   }
 }
 
-function placeBet(bird, row) {
+function selectRow(bird, row) {
   if (STATE.phase !== 'BETTING') return showToast('Betting is locked!');
+  STATE.selectedRows[bird] = row;
+
+  // If a bet has already been placed, automatically move the bet to the new selection
+  if (STATE.bets[bird].amount > 0) {
+    placeBet(bird);
+  } else {
+    renderBoard();
+  }
+}
+
+function placeBet(bird) {
+  if (STATE.phase !== 'BETTING') return showToast('Betting is locked!');
+  const row = STATE.selectedRows[bird];
+  if (!row) return showToast(`Select a card in ${bird.toUpperCase()} column first!`);
+  
   const amt = STATE.panelBetAmounts[bird];
   if (amt <= 0) return showToast('Select or enter a bet amount!');
+  
   const diff = amt - STATE.bets[bird].amount;
   if (diff > STATE.balance) return showToast('Insufficient balance!');
+  
   STATE.balance -= diff;
   updateBalanceDisplay();
   STATE.bets[bird] = { row, amount: amt };
   showToast(`₹${amt} on ${bird.toUpperCase()} Row ${row}`);
-
-  DOM.bettingCells[bird].forEach(c => c.removeAttribute('data-active'));
-  const activeCell = DOM.bettingCells[bird].find(c => +c.dataset.row === row);
-  if (activeCell) activeCell.setAttribute('data-active', 'true');
 
   renderBoard();
   updatePossibleWin();
@@ -179,20 +190,33 @@ function renderBoard() {
     DOM.bettingCells[bird].forEach(cell => {
       const row = +cell.dataset.row;
       const cellBird = cell.dataset.bird;
+      
       const hasBet = STATE.bets[cellBird].row === row && STATE.bets[cellBird].amount > 0;
+      const isDraft = STATE.selectedRows[cellBird] === row && !hasBet && STATE.panelBetAmounts[cellBird] > 0;
 
       const betBadge = cell.querySelector('.cell-bet');
       if (betBadge) {
-        betBadge.textContent = hasBet ? `₹${STATE.bets[cellBird].amount}` : '';
-        betBadge.style.display = hasBet ? 'block' : 'none';
+        if (hasBet) {
+          betBadge.textContent = `₹${STATE.bets[cellBird].amount}`;
+          betBadge.style.display = 'block';
+        } else if (isDraft) {
+          betBadge.textContent = `₹${STATE.panelBetAmounts[cellBird]}`;
+          betBadge.style.display = 'block';
+        } else {
+          betBadge.textContent = '';
+          betBadge.style.display = 'none';
+        }
       }
 
       if (STATE.phase === 'BETTING') {
         const lbl = cell.querySelector('.bird-lbl');
+        const cellBg = cell.querySelector('.cell-bg');
 
-        if (hasBet) {
+        if (hasBet || isDraft) {
+          cell.setAttribute('data-active', 'true');
           if (lbl) { lbl.style.opacity = '1'; lbl.style.display = 'block'; }
         } else {
+          cell.removeAttribute('data-active');
           if (!cell.classList.contains('cell--winner')) {
             if (lbl) { lbl.style.opacity = '0'; lbl.style.display = 'none'; }
           }
@@ -251,25 +275,27 @@ function startSpinPhase() {
   STATE.winningRows.tota = Math.floor(Math.random() * 5) + 1;
   STATE.winningRows.mena = Math.floor(Math.random() * 5) + 1;
 
-  const allCells = DOM.allCells;
-
-  // Prepare all cells for spinning (hide birds and labels)
-  allCells.forEach(cell => {
-    cell.classList.remove('cell--winner');
-    cell.removeAttribute('data-win');
-
-    const lbl = cell.querySelector('.bird-lbl');
-    const betBadge = cell.querySelector('.cell-bet');
-    if (lbl) { lbl.style.opacity = '0'; lbl.style.display = 'none'; }
-    if (betBadge) { betBadge.style.display = 'none'; }
-
-    const birdImg = cell.querySelector('.bird');
-    if (birdImg) {
-      birdImg.style.opacity = '0';
-      birdImg.style.filter = 'none';
-      birdImg.style.transform = 'translate(-50%, -50%) scale(1)';
+  // Sync clones so the spinning reels exactly match the current betting state
+  ['tota', 'mena'].forEach(bird => {
+    const track = document.getElementById(`reel-${bird}`);
+    
+    // Remove old clones (children from index 5 onwards)
+    while (track.children.length > 5) {
+      track.removeChild(track.lastChild);
+    }
+    
+    // Clone the top 5 cells to accurately reflect the bet state during the spin
+    const baseCells = Array.from(track.children);
+    for (let i = 0; i < 3; i++) {
+      baseCells.forEach(cell => {
+        const clone = cell.cloneNode(true);
+        track.appendChild(clone);
+      });
     }
   });
+
+  // Update DOM.allCells so resetRound cleans up the new clones as well
+  DOM.allCells = document.querySelectorAll('.board__cell');
 
   // Start physical reel scroll animation
   ['tota', 'mena'].forEach(bird => {
@@ -358,6 +384,8 @@ function revealWinningBird(cell) {
   birdImg.style.opacity = '';
   birdImg.style.transform = '';
   birdImg.style.filter = '';
+  
+  cell.classList.add('cell--winner');
 
   const leftHalf = document.createElement('div');
   leftHalf.className = 'card-half card-half--left';
@@ -401,6 +429,7 @@ function resolvePayouts() {
    ══════════════════════════════════════════════════════════ */
 function resetRound() {
   STATE.bets = { tota: { row: null, amount: 0 }, mena: { row: null, amount: 0 } };
+  STATE.selectedRows = { tota: null, mena: null };
   if (DOM.manualAmtTota) { DOM.manualAmtTota.disabled = false; DOM.manualAmtTota.value = ''; }
   if (DOM.manualAmtMena) { DOM.manualAmtMena.disabled = false; DOM.manualAmtMena.value = ''; }
   $$('.chip').forEach(c => c.classList.remove('chip--selected'));
@@ -408,11 +437,20 @@ function resetRound() {
 
   DOM.allCells.forEach(cell => {
     cell.removeAttribute('data-active');
+    cell.removeAttribute('data-win');
+    cell.classList.remove('cell--winner');
+    
     const betBadge = cell.querySelector('.cell-bet');
     if (betBadge) { betBadge.style.display = 'none'; betBadge.textContent = ''; }
 
     const tempElems = cell.querySelectorAll('.card-half, .shatter-flash');
     tempElems.forEach(el => el.remove());
+
+    const birdImg = cell.querySelector('.bird');
+    if (birdImg) {
+      birdImg.style.opacity = '0';
+      birdImg.style.transform = 'translate(-50%, -50%) scale(0.4)';
+    }
   });
 
   renderBoard();

@@ -21,6 +21,23 @@
       <div class="preloader__text">ELITE EXPERIENCE LOADING...</div>
     </div>
   </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const preloader = document.getElementById('preloader');
+      let minTimeElapsed = false;
+      let allLoaded = false;
+      
+      setTimeout(() => {
+        minTimeElapsed = true;
+        if (allLoaded) preloader.classList.add('is-hidden');
+      }, 800);
+
+      window.addEventListener('load', () => {
+        allLoaded = true;
+        if (minTimeElapsed) preloader.classList.add('is-hidden');
+      });
+    });
+  </script>
 
   <div class="app">
     <!-- HEADER -->
@@ -153,7 +170,7 @@
         </div>
       </aside>
 
-      <main class="main-column main-scroll">
+      <main class="main-column game-scroll">
 
         <!-- TOP STATS -->
         <div class="top-stats">

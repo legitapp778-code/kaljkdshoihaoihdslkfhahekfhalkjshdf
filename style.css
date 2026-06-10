@@ -145,6 +145,17 @@ body {
 /* ── MAIN SCROLL ── */
 .main-scroll {
   flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px 16px 80px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── GAME SCROLL ── */
+.game-scroll {
+  flex: 1;
   overflow: hidden; /* Never allow scrolling on the main game section */
   padding: 16px 16px 80px 16px;
   display: flex;

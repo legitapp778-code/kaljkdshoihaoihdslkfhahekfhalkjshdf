@@ -525,9 +525,4 @@ function shuffleArray(a) { for (let i = a.length - 1; i > 0; i--) { const j = Ma
    ══════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', init);
 
-window.addEventListener('load', () => {
-  const preloader = document.getElementById('preloader');
-  if (preloader) {
-    preloader.classList.add('is-hidden');
-  }
-});
+

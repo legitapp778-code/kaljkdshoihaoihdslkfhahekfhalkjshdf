@@ -159,6 +159,7 @@ function placeBet(bird, row) {
   const diff = amt - STATE.bets[bird].amount;
   if (diff > STATE.balance) return showToast('Insufficient balance!');
   STATE.balance -= diff;
+  updateBalanceDisplay();
   STATE.bets[bird] = { row, amount: amt };
   showToast(`₹${amt} on ${bird.toUpperCase()} Row ${row}`);
 
@@ -223,9 +224,6 @@ function startTimer() {
     if (STATE.roundTimer <= 0) {
       clearInterval(timerInterval);
       stopSpinPhaseAndReveal();
-      setTimeout(() => {
-        resetRound();
-      }, 3500);
     }
   }, 1000);
 }
@@ -292,18 +290,56 @@ function startSpinPhase() {
 }
 
 function stopSpinPhaseAndReveal() {
-  ['tota', 'mena'].forEach(bird => {
+  let finishedCount = 0;
+
+  ['tota', 'mena'].forEach((bird, index) => {
     const track = document.getElementById(`reel-${bird}`);
+    const colHeight = track.parentElement.clientHeight;
+    // Scroll exactly 2 sets down to land seamlessly on an identical layout
+    const distance = (colHeight + 8) * 2;
+
     if (track._spinAnim) track._spinAnim.cancel();
-    track.style.transform = 'translateY(0px)'; // Snap to first 5 cells
 
-    const winningRow = STATE.winningRows[bird];
-    // Reveal bird only in the first set of 5
-    const cell = DOM.bettingCells[bird].find(c => +c.dataset.row === winningRow);
-    if (cell) revealWinningBird(cell);
+    // Smooth deceleration
+    const stopAnim = track.animate([
+      { transform: `translateY(0px)` },
+      { transform: `translateY(-${distance}px)` }
+    ], {
+      duration: 1200 + (index * 400), // First stops at 1.2s, second at 1.6s
+      easing: 'cubic-bezier(0.1, 0.9, 0.2, 1)',
+      fill: 'forwards'
+    });
+
+    stopAnim.onfinish = () => {
+      stopAnim.cancel(); // Remove the fill:forwards override so inline style works
+      track.style.transform = 'translateY(0px)'; // Reset to true 0 immediately
+      
+      const winningRow = STATE.winningRows[bird];
+      // Only manipulate original top 5 cells
+      const cells = Array.from(track.querySelectorAll('.board__cell')).slice(0, 5);
+      
+      cells.forEach(cell => {
+        const rowNum = parseInt(cell.dataset.row);
+        const birdImg = cell.querySelector('.bird');
+        if (!birdImg) return;
+        
+        if (rowNum === winningRow) {
+          revealWinningBird(cell);
+        } else {
+          // Keep non-winning cells empty
+          birdImg.style.opacity = '0';
+        }
+      });
+
+      finishedCount++;
+      if (finishedCount === 2) {
+        resolvePayouts();
+        setTimeout(() => {
+          resetRound();
+        }, 3500); // Wait 3.5s AFTER animation finishes
+      }
+    };
   });
-
-  resolvePayouts();
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -353,6 +389,7 @@ function resolvePayouts() {
   const hasBets = STATE.bets.tota.amount > 0 || STATE.bets.mena.amount > 0;
   if (win > 0) {
     STATE.balance += win;
+    updateBalanceDisplay();
     showToast(`You won ₹${fmtCur(win)}!`);
   } else if (hasBets) {
     showToast('Better luck next time!');
@@ -400,6 +437,13 @@ function closeWin() {
   if (DOM.winOverlay) {
     DOM.winOverlay.classList.remove('is-visible');
     DOM.winOverlay.setAttribute('aria-hidden', 'true');
+  }
+}
+
+function updateBalanceDisplay() {
+  const coinsVal = document.getElementById('coins-val');
+  if (coinsVal) {
+    coinsVal.textContent = fmtCur(STATE.balance);
   }
 }
 

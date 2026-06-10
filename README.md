@@ -45,10 +45,10 @@ This is a lightweight front-end web application built using:
 - [style.css](file:///c:/Users/dpart/Desktop/fakespins/style.css): Premium design system implementation, modal styling, card overlay covers, and keyframe reel-spinning animations.
 - [script.js](file:///c:/Users/dpart/Desktop/fakespins/script.js): Game loop timer, click handlers, asset swapping, mock wallet deposits/withdrawals, and history rendering.
 - **`assets/`** directory:
-  - `logo.png`: Premium header logo.
-  - `emp_design.png`: Card background detailing gold borders, scroll corners, and a central empty mandala.
-  - `tota.png` & `mena.png`: High-resolution graphics of the birds.
-  - `1.png` to `5.png`: Stylized row index card numbers.
+  - `logo.webp`: Premium header logo.
+  - `emp_design.webp`: Card background detailing gold borders, scroll corners, and a central empty mandala.
+  - `tota.webp` & `mena.webp`: High-resolution graphics of the birds.
+  - `1.webp` to `5.webp`: Stylized row index card numbers.
 
 ---
 

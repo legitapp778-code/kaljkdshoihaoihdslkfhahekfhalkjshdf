@@ -251,7 +251,7 @@ body {
   border: 3px solid transparent;
 }
 
-/* Layer 0: Card background (emp_design.png) */
+/* Layer 0: Card background (emp_design.webp) */
 .cell-bg {
   position: absolute;
   inset: 0;
@@ -308,7 +308,7 @@ body {
   content: '';
   position: absolute;
   inset: 0;
-  background-image: url('assets/selected.png');
+  background-image: url('assets/selected.webp');
   background-size: 100% 100%;
   opacity: 0;
   z-index: 1;
@@ -2067,7 +2067,7 @@ input:checked+.toggle-slider:before {
 .card-half {
   position: absolute;
   inset: 0;
-  background-image: url('assets/emp_design.png');
+  background-image: url('assets/emp_design.webp');
   background-size: 100% 100%;
   z-index: 4;
   pointer-events: none;
@@ -2203,6 +2203,7 @@ input:checked+.toggle-slider:before {
   object-fit: contain;
   filter: drop-shadow(0 0 15px rgba(201, 160, 76, 0.4));
   animation: pulseLogo 2s infinite ease-in-out;
+  will-change: transform, opacity;
 }
 
 .preloader__spinner {
@@ -2225,8 +2226,8 @@ input:checked+.toggle-slider:before {
 }
 
 @keyframes pulseLogo {
-  0%, 100% { opacity: 0.8; transform: scale(0.95); filter: drop-shadow(0 0 10px rgba(201, 160, 76, 0.2)); }
-  50% { opacity: 1; transform: scale(1.05); filter: drop-shadow(0 0 25px rgba(201, 160, 76, 0.6)); }
+  0%, 100% { opacity: 0.8; transform: scale(0.95); }
+  50% { opacity: 1; transform: scale(1.05); }
 }
 
 @keyframes pulseText {

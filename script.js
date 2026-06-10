@@ -85,7 +85,7 @@ function init() {
   if (winBg) winBg.addEventListener('click', closeWin);
 
   // Preload base images to avoid flickering
-  ['assets/tota.png', 'assets/mena.png', 'assets/emp_design.png'].forEach(src => {
+  ['assets/tota.webp', 'assets/mena.webp', 'assets/emp_design.webp'].forEach(src => {
     const img = new Image();
     img.src = src;
   });
@@ -106,7 +106,7 @@ function resetCellVisual(cell) {
 
   // Bird: invisible initially
   if (bird) {
-    bird.src = `assets/${cell.dataset.bird}.png`;
+    bird.src = `assets/${cell.dataset.bird}.webp`;
     bird.style.opacity = '0';
     bird.style.transform = 'translate(-50%, -50%) scale(0.4)';
   }
@@ -316,7 +316,7 @@ function revealWinningBird(cell) {
 
   if (!birdImg) return;
 
-  birdImg.src = `assets/${bird}.png`;
+  birdImg.src = `assets/${bird}.webp`;
   cell.setAttribute('data-win', 'true');
 
   birdImg.style.opacity = '';

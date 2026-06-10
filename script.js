@@ -129,6 +129,7 @@ function setupPanel(bird, chips, input, btn) {
     chip.addEventListener('click', () => {
       if (STATE.phase !== 'BETTING') return showToast('Betting is locked!');
       STATE.panelBetAmounts[bird] = +chip.dataset.amt;
+      chips.forEach(c => c.classList.remove('chip--selected'));
       chip.classList.add('chip--selected');
       if (input) input.value = '';
       renderBoard();

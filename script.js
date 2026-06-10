@@ -161,7 +161,7 @@ function placeBet(bird, row) {
   STATE.balance -= diff;
   STATE.bets[bird] = { row, amount: amt };
   showToast(`₹${amt} on ${bird.toUpperCase()} Row ${row}`);
-  
+
   DOM.bettingCells[bird].forEach(c => c.removeAttribute('data-active'));
   const activeCell = DOM.bettingCells[bird].find(c => +c.dataset.row === row);
   if (activeCell) activeCell.setAttribute('data-active', 'true');
@@ -215,17 +215,17 @@ function startTimer() {
   timerInterval = setInterval(() => {
     STATE.roundTimer--;
     renderTimer();
-    
+
     if (STATE.roundTimer === 7) {
       startSpinPhase();
     }
-    
+
     if (STATE.roundTimer <= 0) {
       clearInterval(timerInterval);
       stopSpinPhaseAndReveal();
       setTimeout(() => {
         resetRound();
-      }, 2000);
+      }, 3500);
     }
   }, 1000);
 }
@@ -351,8 +351,8 @@ function resolvePayouts() {
   if (STATE.bets.tota.row === STATE.winningRows.tota) win += STATE.bets.tota.amount * STATE.multiplier;
   if (STATE.bets.mena.row === STATE.winningRows.mena) win += STATE.bets.mena.amount * STATE.multiplier;
   const hasBets = STATE.bets.tota.amount > 0 || STATE.bets.mena.amount > 0;
-  if (win > 0) { 
-    STATE.balance += win; 
+  if (win > 0) {
+    STATE.balance += win;
     showToast(`You won ₹${fmtCur(win)}!`);
   } else if (hasBets) {
     showToast('Better luck next time!');
@@ -368,12 +368,12 @@ function resetRound() {
   if (DOM.manualAmtMena) { DOM.manualAmtMena.disabled = false; DOM.manualAmtMena.value = ''; }
   $$('.chip').forEach(c => c.classList.remove('chip--selected'));
   STATE.panelBetAmounts = { tota: 0, mena: 0 };
-  
+
   DOM.allCells.forEach(cell => {
     cell.removeAttribute('data-active');
     const betBadge = cell.querySelector('.cell-bet');
     if (betBadge) { betBadge.style.display = 'none'; betBadge.textContent = ''; }
-    
+
     const tempElems = cell.querySelectorAll('.card-half, .shatter-flash');
     tempElems.forEach(el => el.remove());
   });
@@ -389,7 +389,7 @@ function resetRound() {
 function updatePossibleWin() {
   const t = STATE.bets.tota.amount || STATE.panelBetAmounts.tota;
   const m = STATE.bets.mena.amount || STATE.panelBetAmounts.mena;
-  DOM.possWinDisplay.textContent = (t + m) > 0 ? `₹${fmtCur((t + m) * STATE.multiplier)}` : '₹0';
+  DOM.possWinDisplay.textContent = (t + m) > 0 ? `${fmtCur((t + m) * STATE.multiplier)}` : '₹0';
   DOM.multDisplay.textContent = `${STATE.multiplier.toFixed(2)}x`;
 }
 
@@ -441,3 +441,13 @@ function shuffleArray(a) { for (let i = a.length - 1; i > 0; i--) { const j = Ma
    BOOT
    ══════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', init);
+
+window.addEventListener('load', () => {
+  const preloader = document.getElementById('preloader');
+  if (preloader) {
+    // Add a slight delay to let the user appreciate the elite loading screen
+    setTimeout(() => {
+      preloader.classList.add('is-hidden');
+    }, 1200);
+  }
+});

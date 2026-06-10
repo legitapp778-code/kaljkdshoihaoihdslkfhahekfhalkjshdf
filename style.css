@@ -2076,12 +2076,12 @@ input:checked+.toggle-slider:before {
 
 .card-half--left {
   clip-path: polygon(0% 0%, 50% 0%, 30% 25%, 70% 50%, 30% 75%, 50% 100%, 0% 100%);
-  animation: shatterLeft 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  animation: shatterLeft 1.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
 .card-half--right {
   clip-path: polygon(50% 0%, 100% 0%, 100% 100%, 50% 100%, 30% 75%, 70% 50%, 30% 25%);
-  animation: shatterRight 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  animation: shatterRight 1.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
 .shatter-flash {
@@ -2094,12 +2094,12 @@ input:checked+.toggle-slider:before {
   box-shadow: 0 0 30px 15px white, 0 0 60px 30px var(--gold);
   transform: translate(-50%, -50%) scaleX(0);
   z-index: 3;
-  animation: crackFlash 0.6s ease-out forwards;
+  animation: crackFlash 1.0s ease-out forwards;
   pointer-events: none;
 }
 
 .board__cell[data-win="true"] .bird {
-  animation: birdEmerge 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  animation: birdEmerge 1.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
 @keyframes shatterLeft {
@@ -2169,4 +2169,67 @@ input:checked+.toggle-slider:before {
     opacity: 1;
     filter: brightness(1);
   }
+}
+
+/* ══════════════════════════════════════════════════════════
+   PRELOADER
+   ══════════════════════════════════════════════════════════ */
+.preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: radial-gradient(circle at center, #1a1105 0%, #080500 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.8s ease, visibility 0.8s ease;
+}
+
+.preloader.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.preloader__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+}
+
+.preloader__logo {
+  height: 80px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 15px rgba(201, 160, 76, 0.4));
+  animation: pulseLogo 2s infinite ease-in-out;
+}
+
+.preloader__spinner {
+  width: 40px;
+  height: 40px;
+  border: 2px solid rgba(201, 160, 76, 0.15);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+}
+
+.preloader__text {
+  font-family: var(--font-sora);
+  color: var(--gold);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  animation: pulseText 2s infinite ease-in-out;
+}
+
+@keyframes pulseLogo {
+  0%, 100% { opacity: 0.8; transform: scale(0.95); filter: drop-shadow(0 0 10px rgba(201, 160, 76, 0.2)); }
+  50% { opacity: 1; transform: scale(1.05); filter: drop-shadow(0 0 25px rgba(201, 160, 76, 0.6)); }
+}
+
+@keyframes pulseText {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
 }

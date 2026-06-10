@@ -14,8 +14,15 @@
 </head>
 
 <body>
-  <div class="app">
+  <div id="preloader" class="preloader">
+    <div class="preloader__content">
+      <img src="assets/logo.png" alt="Tota & Mena Elite" class="preloader__logo">
+      <div class="preloader__spinner"></div>
+      <div class="preloader__text">ELITE EXPERIENCE LOADING...</div>
+    </div>
+  </div>
 
+  <div class="app">
     <!-- HEADER -->
     <header class="app-header">
       <button class="icon-btn menu-btn">
@@ -164,7 +171,7 @@
           </div>
           <div class="stat-card">
             <span class="stat-title">POSSIBLE WIN</span>
-            <span class="stat-val">₹<span id="possWinDisplay">0</span></span>
+            <span class="stat-val"><span id="possWinDisplay">0</span></span>
           </div>
         </div>
 

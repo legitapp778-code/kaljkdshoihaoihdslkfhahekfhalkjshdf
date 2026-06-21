@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Sign In · Tota & Mena Elite</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@700;900&family=Inter:wght@400;600;700;800&family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body class="auth-body">
+  <div class="app auth-app">
+    <div class="auth-container">
+
+      <img src="../assets/logo.webp" alt="Tota & Mena Elite" class="auth-logo">
+      <h1 class="auth-title">ELITE ACCESS</h1>
+      <p class="auth-subtitle" id="authSubtitle">Enter your mobile number to sign in.</p>
+
+      <!-- STEP 1: PHONE -->
+      <div id="step-phone" class="auth-step active">
+        <div class="auth-fields">
+          <div class="input-group">
+            <span class="input-prefix">+91</span>
+            <input type="tel" id="phoneInput" class="auth-input"
+              placeholder="Mobile Number" maxlength="10" autocomplete="off"
+              inputmode="numeric">
+          </div>
+        </div>
+
+        <button class="auth-btn" id="reqOtpBtn" disabled>GET OTP</button>
+
+        <div class="auth-divider"><span>OR</span></div>
+
+        <p class="auth-terms">
+          Don't have an account?
+          <a href="signup.html">Sign Up</a>
+        </p>
+        <p class="auth-terms">
+          By continuing you agree to our
+          <a href="terms.html">Terms</a> &amp;
+          <a href="privacy-policy.html">Privacy Policy</a>.
+        </p>
+      </div>
+
+      <!-- STEP 2: OTP -->
+      <div id="step-otp" class="auth-step">
+        <div class="otp-group" id="otpGroup">
+          <!-- 4 boxes injected by JS -->
+        </div>
+
+        <button class="auth-btn" id="verifyOtpBtn" disabled>VERIFY &amp; SIGN IN</button>
+
+        <div class="otp-footer">
+          <span class="timer-text" id="otpTimer">00:30</span>
+          <button class="resend-btn" id="resendBtn" disabled>Resend OTP</button>
+        </div>
+        <button class="edit-phone-btn" id="editPhoneBtn">✎ Change Number</button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // Determine BASE dynamically or use relative path
+    const BASE = ''; 
+
+    const stepPhone   = document.getElementById('step-phone');
+    const stepOtp     = document.getElementById('step-otp');
+    const phoneInput  = document.getElementById('phoneInput');
+    const reqOtpBtn   = document.getElementById('reqOtpBtn');
+    const authSubtitle = document.getElementById('authSubtitle');
+    const otpGroup    = document.getElementById('otpGroup');
+    const verifyOtpBtn = document.getElementById('verifyOtpBtn');
+    const editPhoneBtn = document.getElementById('editPhoneBtn');
+    const resendBtn   = document.getElementById('resendBtn');
+    const otpTimer    = document.getElementById('otpTimer');
+
+    let timerInterval;
+
+    // ── PHONE ──
+    phoneInput.addEventListener('input', e => {
+      e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
+      reqOtpBtn.disabled = e.target.value.length !== 10;
+    });
+
+    phoneInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !reqOtpBtn.disabled) reqOtpBtn.click();
+    });
+
+    reqOtpBtn.addEventListener('click', async () => {
+      reqOtpBtn.disabled = true;
+      reqOtpBtn.textContent = 'SENDING…';
+      try {
+        const res = await fetch(`${BASE}/api/v1/auth/send-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: phoneInput.value })
+        });
+        if (!res.ok) {
+          const d = await res.json();
+          showError(d.error || 'Failed to send OTP');
+          return;
+        }
+        goToOtpStep();
+      } catch {
+        showError('Cannot reach server. Make sure the backend is running.');
+      } finally {
+        reqOtpBtn.disabled = false;
+        reqOtpBtn.textContent = 'GET OTP';
+      }
+    });
+
+    function goToOtpStep() {
+      stepPhone.classList.remove('active');
+      stepOtp.classList.add('active');
+      authSubtitle.innerHTML = `OTP sent to <b>+91 ${phoneInput.value}</b>`;
+      buildOtpBoxes(4);
+      startTimer();
+    }
+
+    // ── OTP BOXES ──
+    function buildOtpBoxes(count) {
+      otpGroup.innerHTML = '';
+      for (let i = 0; i < count; i++) {
+        const inp = document.createElement('input');
+        inp.type = 'tel';
+        inp.className = 'otp-input';
+        inp.maxLength = 1;
+        inp.autocomplete = 'off';
+        inp.inputMode = 'numeric';
+        inp.placeholder = '·';
+        otpGroup.appendChild(inp);
+      }
+      wireOtpBoxes();
+      otpGroup.firstChild.focus();
+    }
+
+    function wireOtpBoxes() {
+      const boxes = otpGroup.querySelectorAll('.otp-input');
+      boxes.forEach((box, i) => {
+        box.addEventListener('input', e => {
+          e.target.value = e.target.value.replace(/\D/g, '');
+          if (e.target.value && i < boxes.length - 1) boxes[i + 1].focus();
+          checkComplete();
+        });
+        box.addEventListener('keydown', e => {
+          if (e.key === 'Backspace' && !e.target.value && i > 0) {
+            boxes[i - 1].focus();
+            boxes[i - 1].value = '';
+            checkComplete();
+          }
+          if (e.key === 'Enter' && !verifyOtpBtn.disabled) verifyOtpBtn.click();
+        });
+        // Handle paste
+        box.addEventListener('paste', e => {
+          e.preventDefault();
+          const digits = (e.clipboardData.getData('text') || '').replace(/\D/g,'').slice(0, boxes.length);
+          [...digits].forEach((d, idx) => { if (boxes[idx]) boxes[idx].value = d; });
+          const last = Math.min(digits.length, boxes.length - 1);
+          boxes[last].focus();
+          checkComplete();
+        });
+      });
+    }
+
+    function getOtpCode() {
+      return [...otpGroup.querySelectorAll('.otp-input')].map(b => b.value).join('');
+    }
+
+    function checkComplete() {
+      verifyOtpBtn.disabled = getOtpCode().length !== 4;
+    }
+
+    // ── VERIFY ──
+    verifyOtpBtn.addEventListener('click', async () => {
+      verifyOtpBtn.disabled = true;
+      verifyOtpBtn.textContent = 'VERIFYING…';
+      try {
+        const res = await fetch(`${BASE}/api/v1/auth/verify-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: phoneInput.value, otp: getOtpCode() })
+        });
+        if (!res.ok) {
+          const d = await res.json();
+          showOtpError(d.error || 'Incorrect OTP');
+          return;
+        }
+        const data = await res.json();
+        localStorage.setItem('accessToken', data.accessToken);
+        localStorage.setItem('refreshToken', data.refreshToken);
+        window.location.href = '../index.html';
+      } catch {
+        showError('Error connecting to server.');
+      } finally {
+        verifyOtpBtn.disabled = false;
+        verifyOtpBtn.textContent = 'VERIFY & SIGN IN';
+      }
+    });
+
+    // ── RESEND ──
+    resendBtn.addEventListener('click', async () => {
+      resendBtn.disabled = true;
+      try {
+        await fetch(`${BASE}/api/v1/auth/send-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: phoneInput.value })
+        });
+        buildOtpBoxes(4);
+        startTimer();
+      } catch {
+        showError('Failed to resend OTP');
+        resendBtn.disabled = false;
+      }
+    });
+
+    editPhoneBtn.addEventListener('click', () => {
+      clearInterval(timerInterval);
+      stepOtp.classList.remove('active');
+      stepPhone.classList.add('active');
+      authSubtitle.textContent = 'Enter your mobile number to sign in.';
+      verifyOtpBtn.disabled = true;
+      phoneInput.focus();
+    });
+
+    // ── TIMER ──
+    function startTimer() {
+      clearInterval(timerInterval);
+      resendBtn.disabled = true;
+      let t = 30;
+      otpTimer.textContent = '00:30';
+      timerInterval = setInterval(() => {
+        t--;
+        otpTimer.textContent = `00:${t < 10 ? '0' + t : t}`;
+        if (t <= 0) {
+          clearInterval(timerInterval);
+          resendBtn.disabled = false;
+        }
+      }, 1000);
+    }
+
+    // ── ERROR HELPERS ──
+    function showError(msg) {
+      // Inline toast — no ugly alert()
+      let toast = document.getElementById('authToast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'authToast';
+        toast.style.cssText = `
+          position:fixed; bottom:32px; left:50%; transform:translateX(-50%);
+          background:rgba(220,38,38,0.92); color:#fff;
+          font-family:var(--font-sora); font-size:13px; font-weight:600;
+          padding:12px 20px; border-radius:12px; z-index:9999;
+          box-shadow:0 8px 24px rgba(0,0,0,0.5);
+          backdrop-filter:blur(8px);
+          white-space:nowrap; max-width:90vw;
+          transition:opacity 0.3s;
+        `;
+        document.body.appendChild(toast);
+      }
+      toast.textContent = msg;
+      toast.style.opacity = '1';
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+    }
+
+    function showOtpError(msg) {
+      otpGroup.querySelectorAll('.otp-input').forEach(b => {
+        b.style.borderColor = '#dc2626';
+        b.style.boxShadow = '0 0 0 3px rgba(220,38,38,0.18)';
+        b.value = '';
+        setTimeout(() => {
+          b.style.borderColor = '';
+          b.style.boxShadow = '';
+        }, 1200);
+      });
+      otpGroup.firstChild.focus();
+      showError(msg);
+    }
+  });
+  </script>
+</body>
+</html>

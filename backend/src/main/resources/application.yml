@@ -1,0 +1,65 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/totemena?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&rewriteBatchedStatements=true&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048}
+    username: ${DB_USER:root}
+    password: ${DB_PASS:}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      pool-name: ElitePool
+      data-source-properties:
+        cachePrepStmts: true
+        prepStmtCacheSize: 250
+        prepStmtCacheSqlLimit: 2048
+        useServerPrepStmts: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate.dialect: org.hibernate.dialect.MySQLDialect
+      hibernate.type.preferred_uuid_jdbc_type: VARCHAR
+      hibernate.jdbc.batch_size: 20
+      hibernate.order_inserts: true
+      hibernate.order_updates: true
+      hibernate.jdbc.batch_versioned_data: true
+      hibernate.generate_statistics: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  data:
+    redis:
+      url: ${REDIS_URL:redis://localhost:6379}
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:ThisIsADevelopmentSecretKeyThatMustBeAtLeast64CharactersLongForHS256Algorithm!!}
+    access-expiry-ms: 900000        # 15 minutes
+    refresh-expiry-ms: 604800000    # 7 days
+  otp:
+    value: "1234"                 # TODO: replace with real SMS provider
+    ttl-minutes: 5
+    max-attempts: 3
+  game:
+    betting-phase-seconds: 15
+    spinning-phase-seconds: 7
+    result-display-seconds: 3
+    multiplier: 2.00
+  websocket:
+    allowed-origins: ${WS_ALLOWED_ORIGIN:http://localhost:*}
+  frontend:
+    origin: ${FRONTEND_ORIGIN:http://localhost:*}
+
+logging:
+  level:
+    com.totemena.elite: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+    org.springframework.web.socket: WARN

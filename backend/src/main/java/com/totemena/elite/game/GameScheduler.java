@@ -132,7 +132,13 @@ public class GameScheduler {
     @Transactional
     protected void transitionToSpinning(String roundIdStr) {
         UUID roundId = UUID.fromString(roundIdStr);
-        Round round = roundRepository.findById(roundId).orElseThrow();
+        Round round = roundRepository.findById(roundId).orElse(null);
+
+        if (round == null) {
+            log.warn("Round {} not found in database. Clearing stale Redis state.", roundIdStr);
+            redisTemplate.delete("game:current_round_id");
+            return;
+        }
 
         if (!"BETTING".equals(round.getStatus())) {
             return;
@@ -157,7 +163,13 @@ public class GameScheduler {
     @Transactional
     protected void finishRound(String roundIdStr) {
         UUID roundId = UUID.fromString(roundIdStr);
-        Round round = roundRepository.findById(roundId).orElseThrow();
+        Round round = roundRepository.findById(roundId).orElse(null);
+
+        if (round == null) {
+            log.warn("Round {} not found in database. Clearing stale Redis state.", roundIdStr);
+            redisTemplate.delete("game:current_round_id");
+            return;
+        }
 
         if (!"SPINNING".equals(round.getStatus())) return;
 

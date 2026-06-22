@@ -195,22 +195,16 @@ async function loadSharedPageData() {
   }
 
   // 2. Load global stats — GET /api/v1/stats/global
-  await fetchGlobalStats();
-
-  // 3. Load user stats — GET /api/v1/stats/user
-  if (window.location.pathname.includes('results.html')) {
-    await fetchUserStats();
-  }
+  fetchGlobalStats();
 }
 
 
 
 async function fetchGlobalStats() {
-  try {
-    const res = await apiFetch('/api/v1/stats/global');
-    if (!res || !res.ok) return;
-    const data = await res.json();
+  const cacheKey = 'cache_/api/v1/stats/global';
+  const cached = sessionStorage.getItem(cacheKey);
 
+  const renderData = (data) => {
     // LIVE STATS — update ALL .ls-item blocks on ANY page
     document.querySelectorAll('.ls-item').forEach(item => {
       const label = item.querySelector('.ls-label')?.textContent.trim();
@@ -245,6 +239,18 @@ async function fetchGlobalStats() {
 
     // CURRENT ROUND on index.html top-stats bar
     updateCurrentRoundIdUI(data.currentRoundId);
+  };
+
+  if (cached) {
+    try { renderData(JSON.parse(cached)); } catch(e){}
+  }
+
+  try {
+    const res = await apiFetch('/api/v1/stats/global');
+    if (!res || !res.ok) return;
+    const data = await res.json();
+    sessionStorage.setItem(cacheKey, JSON.stringify(data));
+    renderData(data);
   } catch (e) {
     console.error("Failed to load shared page data", e);
   }
@@ -261,11 +267,10 @@ function updateCurrentRoundIdUI(roundId) {
 }
 
 async function fetchUserStats() {
-  try {
-    // User stats — GET /api/v1/stats/user
-    const res = await apiFetch('/api/v1/stats/user');
-    if (res && res.ok) {
-      const data = await res.json();
+  const cacheKey = 'cache_/api/v1/stats/user';
+  const cached = sessionStorage.getItem(cacheKey);
+
+  const renderData = (data) => {
       document.querySelectorAll('.sd-card').forEach(card => {
         const label = card.querySelector('.sd-label')?.textContent.trim();
         const valElem = card.querySelector('.sd-val');
@@ -301,16 +306,21 @@ async function fetchUserStats() {
       if (upName) upName.textContent = data.gamesPlayed + ' Games Played';
       const profPhone = document.getElementById('prof-phone');
       if (profPhone) profPhone.value = data.phone || '';
+  };
 
-      // Load results history if on results page
-      if (window.location.pathname.includes('results')) {
-        loadHistoryTable();
-      }
+  if (cached) {
+    try { renderData(JSON.parse(cached)); } catch(e){}
+  }
 
-      // Load transactions if on transactions page
-      if (window.location.pathname.includes('transactions')) {
-        loadTransactionsTable();
-      }
+  try {
+    // User stats — GET /api/v1/stats/user
+    const res = await apiFetch('/api/v1/stats/user');
+    if (res && res.ok) {
+      const data = await res.json();
+      sessionStorage.setItem(cacheKey, JSON.stringify(data));
+      renderData(data);
+
+      // History and transaction loading logic is handled dynamically by the page scripts
 
       const logoutBtn = document.querySelector('.logout-btn');
       const isSubdir = window.location.pathname.includes('/pages/');
@@ -1115,7 +1125,8 @@ function prependRecentResult(roundId, winTota, winMena) {
 document.addEventListener('DOMContentLoaded', async () => {
   init();
 
-  await loadSharedPageData();
+  // Fire off shared data fetching in parallel without awaiting
+  loadSharedPageData();
 
   if (!window.location.pathname.includes('signin.html') && !window.location.pathname.includes('signup.html')) {
     fetchUserStats();
@@ -1160,23 +1171,36 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function loadHistoryTable() {
-    try {
-      const table = document.getElementById('results-history-table');
-      if (!table) return;
+    const table = document.getElementById('results-history-table');
+    if (!table) return;
 
-      if (currentHistoryFilter === 'all') {
+    if (currentHistoryFilter === 'all') {
+      const cacheKey = 'cache_/api/v1/stats/history';
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        try { renderRecentResultsTable(JSON.parse(cached), table); } catch(e){}
+      }
+      try {
         const res = await apiFetch('/api/v1/stats/history');
         if (!res.ok) return;
         const data = await res.json();
+        sessionStorage.setItem(cacheKey, JSON.stringify(data));
         renderRecentResultsTable(data, table);
-      } else if (currentHistoryFilter === 'my') {
+      } catch (e) { console.error(e); }
+
+    } else if (currentHistoryFilter === 'my') {
+      const cacheKey = 'cache_/api/v1/game/history?page=0&size=20';
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        try { renderMyBetsTable(JSON.parse(cached).content || [], table); } catch(e){}
+      }
+      try {
         const res = await apiFetch('/api/v1/game/history?page=0&size=20');
         if (!res.ok) return;
         const data = await res.json();
+        sessionStorage.setItem(cacheKey, JSON.stringify(data));
         renderMyBetsTable(data.content || [], table);
-      }
-    } catch (e) {
-      console.error("Failed to load history", e);
+      } catch (e) { console.error(e); }
     }
   }
 

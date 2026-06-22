@@ -41,7 +41,9 @@ public class GameScheduler {
     @Value("${app.game.multiplier:2.00}")
     private java.math.BigDecimal multiplier;
 
-    @Scheduled(fixedRate = 1000)
+    private long lastTickSecond = -1;
+
+    @Scheduled(fixedRate = 200)
     public void tick() {
         String roundIdStr = redisTemplate.opsForValue().get("game:current_round_id");
 
@@ -61,30 +63,53 @@ public class GameScheduler {
         }
 
         long startedAt = Long.parseLong(startedAtStr);
-        long elapsedSeconds = (System.currentTimeMillis() - startedAt) / 1000;
+        long elapsedMs = System.currentTimeMillis() - startedAt;
+        long elapsedSeconds = elapsedMs / 1000;
         
         // Phase transitions FIRST — before broadcasting the tick
         // This ensures the frontend never sees remaining=0 with an old phase
-        if ("BETTING".equals(phase) && elapsedSeconds >= bettingPhaseSeconds) {
+        if ("BETTING".equals(phase) && elapsedMs >= bettingPhaseSeconds * 1000L) {
             transitionToSpinning(roundIdStr);
             return;
-        } else if ("SPINNING".equals(phase) && elapsedSeconds >= spinningPhaseSeconds) {
-            finishRound(roundIdStr);
-            return;
-        } else if ("FINISHED".equals(phase) && elapsedSeconds >= resultDisplaySeconds) {
+        } else if ("SPINNING".equals(phase)) {
+            // Secretly send the result 1.6s early so frontend stop animation fits perfectly
+            long revealMs = (spinningPhaseSeconds * 1000L) - 1600L;
+            if (elapsedMs >= revealMs) {
+                String resultSentKey = "game:round:" + roundIdStr + ":result_sent";
+                if (Boolean.FALSE.equals(redisTemplate.hasKey(resultSentKey))) {
+                    sendResultEarly(roundIdStr);
+                    redisTemplate.opsForValue().set(resultSentKey, "true", 120, TimeUnit.SECONDS);
+                }
+            }
+
+            if (elapsedMs >= spinningPhaseSeconds * 1000L) {
+                finishRound(roundIdStr);
+                return;
+            }
+        } else if ("FINISHED".equals(phase) && elapsedMs >= 2500L) {
             redisTemplate.delete("game:current_round_id");
             startNewRound();
             return;
         }
 
-        // Only broadcast tick if we're still in the same phase (remaining > 0)
-        int remaining = calculateRemaining(phase, elapsedSeconds);
-        gameBroadcastService.broadcastTick(roundIdStr, phase, remaining);
+        // Only broadcast tick once per second if we're still in the same phase
+        if (elapsedSeconds != lastTickSecond) {
+            lastTickSecond = elapsedSeconds;
+            int remaining = calculateRemaining(phase, elapsedSeconds);
+            gameBroadcastService.broadcastTick(roundIdStr, phase, remaining);
+        }
+    }
+
+    private void sendResultEarly(String roundIdStr) {
+        UUID roundId = UUID.fromString(roundIdStr);
+        roundRepository.findById(roundId).ifPresent(round -> {
+            gameBroadcastService.broadcastResult(roundIdStr, round.getWinningRowTota(), round.getWinningRowMena());
+        });
     }
 
     private int calculateRemaining(String phase, long elapsedSeconds) {
         return switch (phase) {
-            case "BETTING"  -> Math.max(0, bettingPhaseSeconds  - (int) elapsedSeconds);
+            case "BETTING"  -> Math.max(0, bettingPhaseSeconds  - (int) elapsedSeconds) + spinningPhaseSeconds;
             case "SPINNING" -> Math.max(0, spinningPhaseSeconds - (int) elapsedSeconds);
             default         -> 0;
         };
@@ -150,9 +175,8 @@ public class GameScheduler {
         redisTemplate.opsForValue().set("game:round:" + roundIdStr + ":started_at",
             String.valueOf(System.currentTimeMillis()));
 
-        // Broadcast phase and result NOW — before payout processing
+        // Broadcast phase NOW — before payout processing
         gameBroadcastService.broadcastPhaseChange(roundIdStr, "FINISHED");
-        gameBroadcastService.broadcastResult(roundIdStr, winTota, winMena);
 
         log.info("Round {} FINISHED — winTota={} winMena={}", roundIdStr, winTota, winMena);
 

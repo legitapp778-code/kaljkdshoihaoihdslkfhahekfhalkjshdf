@@ -153,8 +153,8 @@ public class GameScheduler {
         round.setSpinningAt(Instant.now());
         roundRepository.save(round);
 
-        redisTemplate.opsForValue().set("game:round:" + roundIdStr + ":phase", "SPINNING");
-        redisTemplate.opsForValue().set("game:round:" + roundIdStr + ":started_at", String.valueOf(System.currentTimeMillis()));
+        redisTemplate.opsForValue().set("game:round:" + roundIdStr + ":phase", "SPINNING", 120, TimeUnit.SECONDS);
+        redisTemplate.opsForValue().set("game:round:" + roundIdStr + ":started_at", String.valueOf(System.currentTimeMillis()), 120, TimeUnit.SECONDS);
 
         gameBroadcastService.broadcastPhaseChange(roundIdStr, "SPINNING");
         log.info("Round {} entered SPINNING phase", roundIdStr);
@@ -182,10 +182,10 @@ public class GameScheduler {
         round.setFinishedAt(Instant.now());
         roundRepository.save(round);
 
-        // Update Redis immediately so new round can start
-        redisTemplate.opsForValue().set("game:round:" + roundIdStr + ":phase", "FINISHED");
+        // Update Redis immediately so new round can start (with 120s TTL)
+        redisTemplate.opsForValue().set("game:round:" + roundIdStr + ":phase", "FINISHED", 120, TimeUnit.SECONDS);
         redisTemplate.opsForValue().set("game:round:" + roundIdStr + ":started_at",
-            String.valueOf(System.currentTimeMillis()));
+            String.valueOf(System.currentTimeMillis()), 120, TimeUnit.SECONDS);
 
         // Broadcast phase NOW — before payout processing
         gameBroadcastService.broadcastPhaseChange(roundIdStr, "FINISHED");

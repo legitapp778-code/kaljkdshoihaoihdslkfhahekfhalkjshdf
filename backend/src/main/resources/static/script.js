@@ -320,7 +320,13 @@ async function fetchUserStats() {
       sessionStorage.setItem(cacheKey, JSON.stringify(data));
       renderData(data);
 
-      // History and transaction loading logic is handled dynamically by the page scripts
+      // History and transaction loading logic
+      if (window.location.pathname.includes('results')) {
+        if (typeof loadHistoryTable === 'function') loadHistoryTable();
+      }
+      if (window.location.pathname.includes('transactions')) {
+        if (typeof loadTransactionsTable === 'function') loadTransactionsTable();
+      }
 
       const logoutBtn = document.querySelector('.logout-btn');
       const isSubdir = window.location.pathname.includes('/pages/');

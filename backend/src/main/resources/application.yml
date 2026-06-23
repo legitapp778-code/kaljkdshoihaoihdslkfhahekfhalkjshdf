@@ -1,7 +1,5 @@
 server:
   port: ${PORT:8080}
-  # Railway terminates SSL at the proxy — Spring runs HTTP internally
-  # Do NOT configure SSL here
 
 spring:
   datasource:
@@ -9,18 +7,17 @@ spring:
     username: ${DB_USER:root}
     password: ${DB_PASS:}
     hikari:
-      maximum-pool-size: 10        # Railway free tier: keep low
-      minimum-idle: 2
-      connection-timeout: 5000     # fail fast — 5s not 30s
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
       idle-timeout: 300000
-      max-lifetime: 600000         # 10 min — Railway kills long-lived connections
+      max-lifetime: 1200000
       pool-name: ElitePool
       data-source-properties:
         cachePrepStmts: true
         prepStmtCacheSize: 250
         prepStmtCacheSqlLimit: 2048
         useServerPrepStmts: true
-
   jpa:
     hibernate:
       ddl-auto: validate
@@ -34,23 +31,20 @@ spring:
       hibernate.order_updates: true
       hibernate.jdbc.batch_versioned_data: true
       hibernate.generate_statistics: false
-
   flyway:
     enabled: true
     locations: classpath:db/migration
-
   data:
     redis:
       url: ${REDIS_URL:redis://localhost:6379}
-      # Railway Redis addon provides REDIS_URL automatically
 
 app:
   jwt:
-    secret: ${JWT_SECRET:c29tZVZlcnlMb25nQW5kU2VjdXJlU2VjcmV0S2V5VGhhdE11c3RCZUF0TGVhc3Q2NENoYXJhY3RlcnNMb25n}
-    access-expiry-ms: 900000
-    refresh-expiry-ms: 604800000
+    secret: ${JWT_SECRET:ThisIsADevelopmentSecretKeyThatMustBeAtLeast64CharactersLongForHS256Algorithm!!}
+    access-expiry-ms: 900000        # 15 minutes
+    refresh-expiry-ms: 604800000    # 7 days
   otp:
-    value: "1234"
+    value: "1234"                 # TODO: replace with real SMS provider
     ttl-minutes: 5
     max-attempts: 3
   game:
@@ -59,10 +53,9 @@ app:
     result-display-seconds: 3
     multiplier: 2.00
   websocket:
-    # Wildcard — Railway domain is dynamic on free tier
-    allowed-origins: "*"
+    allowed-origins: ${WS_ALLOWED_ORIGIN:http://localhost:*}
   frontend:
-    origin: ${FRONTEND_ORIGIN:*}
+    origin: ${FRONTEND_ORIGIN:http://localhost:*}
 
 logging:
   level:
@@ -70,13 +63,3 @@ logging:
     org.springframework.security: WARN
     org.hibernate.SQL: WARN
     org.springframework.web.socket: WARN
-
-# Railway health check — must respond fast
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health
-  endpoint:
-    health:
-      show-details: never

@@ -539,9 +539,14 @@ async function placeBet(bird) {
     btn.disabled = true;
   }
 
+  const token = localStorage.getItem('accessToken');
   try {
-    const res = await apiFetch('/api/v1/game/bet', {
+    const res = await fetch('/api/v1/game/bet', {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
       body: JSON.stringify({
         bird: bird,
         selectedRow: row,
@@ -585,9 +590,11 @@ async function cancelBet(bird) {
     btn.disabled = true;
   }
 
+  const token = localStorage.getItem('accessToken');
   try {
-    const res = await apiFetch(`/api/v1/game/bet/${bird}`, {
-      method: 'DELETE'
+    const res = await fetch(`/api/v1/game/bet/${bird}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -711,8 +718,8 @@ window.syncStateOnReconnect = async function () {
 
   try {
     const [walletRes, currentRes] = await Promise.all([
-      apiFetch('/api/v1/wallet'),
-      apiFetch('/api/v1/game/current')
+      fetch('/api/v1/wallet', { headers: { 'Authorization': `Bearer ${token}` } }),
+      fetch('/api/v1/game/current', { headers: { 'Authorization': `Bearer ${token}` } })
     ]);
 
     if (walletRes.ok) {

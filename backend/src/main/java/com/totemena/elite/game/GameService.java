@@ -16,9 +16,12 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.util.StopWatch;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class GameService {
 
     private final BetRepository betRepository;
@@ -29,8 +32,12 @@ public class GameService {
 
     @Transactional
     public BetResultResponse placeBet(User user, PlaceBetRequest request) {
+        StopWatch sw = new StopWatch();
+        sw.start("idempotencyCheck");
         // Idempotency check
         Optional<Bet> existingBetByIdempotency = betRepository.findByIdempotencyKey(request.getIdempotencyKey());
+        sw.stop();
+        
         if (existingBetByIdempotency.isPresent()) {
             Bet bet = existingBetByIdempotency.get();
             return BetResultResponse.builder()
@@ -42,25 +49,33 @@ public class GameService {
                     .build();
         }
 
+        sw.start("redisStateCheck");
         String currentRoundIdStr = redisTemplate.opsForValue().get("game:current_round_id");
         if (currentRoundIdStr == null) {
             throw new BettingClosedException("Game is not active");
         }
 
         String phase = redisTemplate.opsForValue().get("game:round:" + currentRoundIdStr + ":phase");
+        sw.stop();
+        
         if (!"BETTING".equals(phase)) {
             throw new BettingClosedException("Betting is closed for this round");
         }
 
+        sw.start("fetchRound");
         UUID roundId = UUID.fromString(currentRoundIdStr);
         Round round = roundRepository.getReferenceById(roundId);
+        sw.stop();
 
+        sw.start("existingBetCheck");
         Optional<Bet> existingBetOnBird = betRepository.findByRoundIdAndUserIdAndBird(roundId, user.getId(), request.getBird());
+        sw.stop();
         
         long amountToDeduct = request.getAmountPaise();
         long finalBalance;
         Bet savedBet;
 
+        sw.start("walletUpdateAndBetSave");
         if (existingBetOnBird.isPresent()) {
             Bet existingBet = existingBetOnBird.get();
             long diff = request.getAmountPaise() - existingBet.getAmountPaise();
@@ -102,7 +117,9 @@ public class GameService {
             WalletTransaction tx = walletService.deductFunds(user.getId(), request.getAmountPaise(), "BET_PLACED", savedBet.getId());
             finalBalance = tx.getBalanceAfterPaise();
         }
+        sw.stop();
 
+        sw.start("sendAck");
         BetAckEvent ackEvent = new BetAckEvent(
                 savedBet.getId().toString(),
                 savedBet.getBird(),
@@ -113,6 +130,9 @@ public class GameService {
         );
 
         gameBroadcastService.sendBetAck(user.getId(), ackEvent);
+        sw.stop();
+        
+        log.info("PlaceBet profiling: {}", sw.prettyPrint());
 
         return BetResultResponse.builder()
                 .betId(savedBet.getId())

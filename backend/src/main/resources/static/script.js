@@ -531,28 +531,13 @@ async function placeBet(bird) {
   const diffPaise = (amt - STATE.bets[bird].amount) * 100;
   if (diffPaise > STATE.balancePaise) return showToast('Insufficient balance!');
 
-  // === OPTIMISTIC UI UPDATE ===
-  // Save previous state in case we need to revert
-  const previousBetAmount = STATE.bets[bird].amount;
-  const previousBalance = STATE.balancePaise;
-
-  // Optimistically apply new state
-  STATE.balancePaise -= diffPaise;
-  STATE.bets[bird] = { row, amount: amt };
-  
-  // Update visuals instantly
-  updateBalanceDisplay('down');
-  renderBoard();
-  updatePossibleWin();
-  
+  // Set button to loading state
   const btn = document.getElementById(`btn-${bird}`);
+  const originalLabel = btn.querySelector('.bet-btn__label').textContent;
   if (btn) {
     btn.querySelector('.bet-btn__label').textContent = 'PLACING...';
     btn.disabled = true;
   }
-  
-  showToast(`✅ Bet placed on ${bird === 'tota' ? 'T' : 'M'}${row} · ₹${fmtCur(amt)} on ${bird === 'tota' ? 'Tota' : 'Mena'}`);
-  // ============================
 
   const token = localStorage.getItem('accessToken');
   try {
@@ -573,34 +558,24 @@ async function placeBet(bird) {
       })
     });
     if (!res.ok) {
-      // === REVERT OPTIMISTIC UPDATE ===
-      STATE.balancePaise = previousBalance;
-      STATE.bets[bird] = { row: STATE.selectedRows[bird], amount: previousBetAmount };
-      updateBalanceDisplay('up');
-      renderBoard();
-      updatePossibleWin();
-      updateBetButtonStates();
-      
       const data = await res.json();
       showToast(data.error || 'Failed to place bet');
+      updateBetButtonStates(); // restore button
       return;
     }
-    
-    // Background success confirmation
     const data = await res.json();
     STATE.balancePaise = data.balanceAfterPaise;
-    updateBalanceDisplay();
-    updateBetButtonStates();
-  } catch (error) {
-    // === REVERT OPTIMISTIC UPDATE ===
-    STATE.balancePaise = previousBalance;
-    STATE.bets[bird] = { row: STATE.selectedRows[bird], amount: previousBetAmount };
-    updateBalanceDisplay('up');
+    updateBalanceDisplay('down');
+
+    // Success WS event will come, but we update UI optimistically
+    STATE.bets[bird] = { row, amount: amt };
     renderBoard();
     updatePossibleWin();
     updateBetButtonStates();
-    
+    showToast(`✅ Bet placed on ${bird === 'tota' ? 'T' : 'M'}${row} · ₹${fmtCur(amt)} on ${bird === 'tota' ? 'Tota' : 'Mena'}`);
+  } catch (error) {
     showToast('Network error while placing bet');
+    updateBetButtonStates(); // restore button
   }
 }
 
@@ -608,34 +583,12 @@ async function cancelBet(bird) {
   if (STATE.phase !== 'BETTING') return showToast('Cannot cancel — betting is closed!');
   if (!STATE.bets[bird] || STATE.bets[bird].amount <= 0) return showToast('No active bet to cancel!');
 
-  // === OPTIMISTIC UI UPDATE ===
-  const previousBetAmount = STATE.bets[bird].amount;
-  const previousRow = STATE.bets[bird].row;
-  const previousBalance = STATE.balancePaise;
-
-  // Optimistically refund
-  STATE.balancePaise += previousBetAmount * 100;
-  STATE.bets[bird] = { row: null, amount: 0 };
-  STATE.selectedRows[bird] = null;
-  STATE.panelBetAmounts[bird] = 0;
-  
-  // Visually remove chips
-  $$(`#chips-${bird} .chip`).forEach(c => c.classList.remove('chip--selected'));
-  const input = document.getElementById(`amt-${bird}`);
-  if (input) input.value = '';
-  
-  updateBalanceDisplay('up');
-  renderBoard();
-  updatePossibleWin();
-  
+  // Set button to loading state
   const btn = document.getElementById(`btn-${bird}`);
   if (btn) {
     btn.querySelector('.bet-btn__label').textContent = 'CANCELLING...';
     btn.disabled = true;
   }
-  
-  showToast(`🚫 Bet on ${bird === 'tota' ? 'T' : 'M'}${previousRow} cancelled · ₹${fmtCur(previousBetAmount)} refunded`);
-  // ============================
 
   const token = localStorage.getItem('accessToken');
   try {
@@ -644,38 +597,30 @@ async function cancelBet(bird) {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (!res.ok) {
-      // === REVERT OPTIMISTIC UPDATE ===
-      STATE.balancePaise = previousBalance;
-      STATE.bets[bird] = { row: previousRow, amount: previousBetAmount };
-      STATE.selectedRows[bird] = previousRow;
-      STATE.panelBetAmounts[bird] = previousBetAmount;
-      updateBalanceDisplay('down');
-      renderBoard();
-      updatePossibleWin();
-      updateBetButtonStates();
-      
       const data = await res.json().catch(() => ({}));
       showToast(data.error || data.message || 'Failed to cancel bet');
+      updateBetButtonStates(); // restore button
       return;
     }
-    
-    // Background success confirmation
     const data = await res.json();
+    // Update balance immediately from server response
     STATE.balancePaise = data.newBalancePaise;
-    updateBalanceDisplay();
-    updateBetButtonStates();
-  } catch (error) {
-    // === REVERT OPTIMISTIC UPDATE ===
-    STATE.balancePaise = previousBalance;
-    STATE.bets[bird] = { row: previousRow, amount: previousBetAmount };
-    STATE.selectedRows[bird] = previousRow;
-    STATE.panelBetAmounts[bird] = previousBetAmount;
-    updateBalanceDisplay('down');
+    updateBalanceDisplay('up');
+    showToast(`🚫 Bet on ${bird === 'tota' ? 'T' : 'M'}${STATE.bets[bird].row} cancelled · ₹${fmtCur(STATE.bets[bird].amount)} refunded`);
+    // Reset this bird's bet
+    STATE.bets[bird] = { row: null, amount: 0 };
+    STATE.selectedRows[bird] = null;
+    STATE.panelBetAmounts[bird] = 0;
+    // Clear chip selection for this bird
+    $$(`#chips-${bird} .chip`).forEach(c => c.classList.remove('chip--selected'));
+    const input = document.getElementById(`amt-${bird}`);
+    if (input) input.value = '';
     renderBoard();
     updatePossibleWin();
     updateBetButtonStates();
-    
+  } catch (error) {
     showToast('Network error while cancelling bet');
+    updateBetButtonStates(); // restore button
   }
 }
 

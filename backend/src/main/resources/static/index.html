@@ -61,7 +61,7 @@
       <div class="header-right">
         <div class="balance-pill">
           <span class="balance-val">₹<span id="coins-val">-</span></span>
-          
+
         </div>
         <button class="icon-btn notif-btn">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
@@ -486,16 +486,20 @@
     <div class="win-overlay__bg"></div>
     <div class="win-overlay__content">
       <div class="win-overlay__crown">👑</div>
-      
-        <div id="winRowsDisplay" style="font-size:14px; font-weight:600; margin-bottom:12px; line-height:1.6; text-shadow: 0 1px 3px rgba(0,0,0,0.5);"></div>
-        <div id="winRowsDisplay" style="font-size:14px; font-weight:600; margin-bottom:12px; line-height:1.6; text-shadow: 0 1px 3px rgba(0,0,0,0.5);"></div>
+
+      <div id="winRowsDisplay"
+        style="font-size:14px; font-weight:600; margin-bottom:12px; line-height:1.6; text-shadow: 0 1px 3px rgba(0,0,0,0.5);">
+      </div>
+      <div id="winRowsDisplay"
+        style="font-size:14px; font-weight:600; margin-bottom:12px; line-height:1.6; text-shadow: 0 1px 3px rgba(0,0,0,0.5);">
+      </div>
       <div class="win-overlay__amount" id="winAmtDisplay">₹0</div>
       <button class="win-overlay__btn" id="winCloseBtn">PLAY AGAIN</button>
     </div>
   </div>
 
-   <div class="toast" id="toast"></div>
-   <script src="ws.js"></script>
+  <div class="toast" id="toast"></div>
+  <script src="ws.js"></script>
   <script src="api.js"></script>
   <script src="script.js"></script>
 </body>

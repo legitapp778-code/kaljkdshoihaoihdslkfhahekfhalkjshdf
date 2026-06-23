@@ -49,6 +49,9 @@ public class GameScheduler {
     private Short cachedWinTota = null;
     private Short cachedWinMena = null;
 
+    public String getCachedRoundId() { return cachedRoundId; }
+    public String getCachedPhase() { return cachedPhase; }
+
     private void clearCacheAndRedis() {
         redisTemplate.delete("game:current_round_id");
         cachedRoundId = null;

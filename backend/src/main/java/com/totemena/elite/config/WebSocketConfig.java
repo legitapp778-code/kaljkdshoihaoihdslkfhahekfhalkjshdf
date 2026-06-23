@@ -11,6 +11,9 @@ import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBr
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 
 @Configuration
 @EnableWebSocketMessageBroker
@@ -23,9 +26,17 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Value("${app.websocket.allowed-origins}")
     private String allowedOrigins;
 
+    private TaskScheduler messageBrokerTaskScheduler;
+
+    @Autowired
+    public void setMessageBrokerTaskScheduler(@Lazy TaskScheduler taskScheduler) {
+        this.messageBrokerTaskScheduler = taskScheduler;
+    }
+
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
         registry.enableSimpleBroker("/topic", "/queue")
+            .setTaskScheduler(messageBrokerTaskScheduler)
             .setHeartbeatValue(new long[]{10000, 10000}); // 10s heartbeat
         registry.setApplicationDestinationPrefixes("/app");
         registry.setUserDestinationPrefix("/user");

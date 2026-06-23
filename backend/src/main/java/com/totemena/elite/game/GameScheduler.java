@@ -7,12 +7,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -43,68 +42,84 @@ public class GameScheduler {
 
     private long lastTickSecond = -1;
 
+    // In-memory cache to eliminate Redis GET operations from the 200ms tick
+    private String cachedRoundId = null;
+    private String cachedPhase = null;
+    private Long cachedStartedAt = null;
+    private Short cachedWinTota = null;
+    private Short cachedWinMena = null;
+
+    private void clearCacheAndRedis() {
+        redisTemplate.delete("game:current_round_id");
+        cachedRoundId = null;
+        cachedPhase = null;
+        cachedStartedAt = null;
+        cachedWinTota = null;
+        cachedWinMena = null;
+    }
+
     @Scheduled(fixedRate = 200)
     public void tick() {
-        String roundIdStr = redisTemplate.opsForValue().get("game:current_round_id");
-
-        if (roundIdStr == null) {
-            startNewRound();
-            return;
+        if (cachedRoundId == null) {
+            cachedRoundId = redisTemplate.opsForValue().get("game:current_round_id");
+            if (cachedRoundId == null) {
+                startNewRound();
+                return;
+            }
+            cachedPhase = redisTemplate.opsForValue().get("game:round:" + cachedRoundId + ":phase");
+            String startedStr = redisTemplate.opsForValue().get("game:round:" + cachedRoundId + ":started_at");
+            cachedStartedAt = startedStr != null ? Long.parseLong(startedStr) : null;
+            
+            String winTotaStr = redisTemplate.opsForValue().get("game:round:" + cachedRoundId + ":win_tota");
+            String winMenaStr = redisTemplate.opsForValue().get("game:round:" + cachedRoundId + ":win_mena");
+            if (winTotaStr != null) cachedWinTota = Short.parseShort(winTotaStr);
+            if (winMenaStr != null) cachedWinMena = Short.parseShort(winMenaStr);
         }
 
-        String phase = redisTemplate.opsForValue().get("game:round:" + roundIdStr + ":phase");
-        String startedAtStr = redisTemplate.opsForValue().get("game:round:" + roundIdStr + ":started_at");
-        
-        if (phase == null || startedAtStr == null) {
+        if (cachedPhase == null || cachedStartedAt == null) {
             log.warn("Round state is missing in Redis. Deleting current round and starting a new one.");
-            redisTemplate.delete("game:current_round_id");
+            clearCacheAndRedis();
             startNewRound();
             return;
         }
 
-        long startedAt = Long.parseLong(startedAtStr);
-        long elapsedMs = System.currentTimeMillis() - startedAt;
+        long elapsedMs = System.currentTimeMillis() - cachedStartedAt;
         long elapsedSeconds = elapsedMs / 1000;
         
-        // Phase transitions FIRST — before broadcasting the tick
-        // This ensures the frontend never sees remaining=0 with an old phase
-        if ("BETTING".equals(phase) && elapsedMs >= bettingPhaseSeconds * 1000L) {
-            transitionToSpinning(roundIdStr);
+        if ("BETTING".equals(cachedPhase) && elapsedMs >= bettingPhaseSeconds * 1000L) {
+            transitionToSpinning();
             return;
-        } else if ("SPINNING".equals(phase)) {
-            // Secretly send the result 1.6s early so frontend stop animation fits perfectly
+        } else if ("SPINNING".equals(cachedPhase)) {
             long revealMs = (spinningPhaseSeconds * 1000L) - 1600L;
             if (elapsedMs >= revealMs) {
-                String resultSentKey = "game:round:" + roundIdStr + ":result_sent";
+                String resultSentKey = "game:round:" + cachedRoundId + ":result_sent";
                 if (Boolean.FALSE.equals(redisTemplate.hasKey(resultSentKey))) {
-                    sendResultEarly(roundIdStr);
+                    sendResultEarly(cachedRoundId);
                     redisTemplate.opsForValue().set(resultSentKey, "true", 120, TimeUnit.SECONDS);
                 }
             }
 
             if (elapsedMs >= spinningPhaseSeconds * 1000L) {
-                finishRound(roundIdStr);
+                finishRound();
                 return;
             }
-        } else if ("FINISHED".equals(phase) && elapsedMs >= 2500L) {
-            redisTemplate.delete("game:current_round_id");
+        } else if ("FINISHED".equals(cachedPhase) && elapsedMs >= 2500L) {
+            clearCacheAndRedis();
             startNewRound();
             return;
         }
 
-        // Only broadcast tick once per second if we're still in the same phase
         if (elapsedSeconds != lastTickSecond) {
             lastTickSecond = elapsedSeconds;
-            int remaining = calculateRemaining(phase, elapsedSeconds);
-            gameBroadcastService.broadcastTick(roundIdStr, phase, remaining);
+            int remaining = calculateRemaining(cachedPhase, elapsedSeconds);
+            gameBroadcastService.broadcastTick(cachedRoundId, cachedPhase, remaining);
         }
     }
 
     private void sendResultEarly(String roundIdStr) {
-        UUID roundId = UUID.fromString(roundIdStr);
-        roundRepository.findById(roundId).ifPresent(round -> {
-            gameBroadcastService.broadcastResult(roundIdStr, round.getWinningRowTota(), round.getWinningRowMena());
-        });
+        if (cachedWinTota != null && cachedWinMena != null) {
+            gameBroadcastService.broadcastResult(roundIdStr, cachedWinTota, cachedWinMena);
+        }
     }
 
     private int calculateRemaining(String phase, long elapsedSeconds) {
@@ -115,90 +130,87 @@ public class GameScheduler {
         };
     }
 
-    @Transactional
     protected void startNewRound() {
         Round newRound = Round.builder().status("BETTING").build();
         roundRepository.save(newRound);
         String roundId = newRound.getId().toString();
 
-        redisTemplate.opsForValue().set("game:current_round_id", roundId);
-        redisTemplate.opsForValue().set("game:round:" + roundId + ":phase", "BETTING", 120, TimeUnit.SECONDS);
-        redisTemplate.opsForValue().set("game:round:" + roundId + ":started_at", String.valueOf(System.currentTimeMillis()), 120, TimeUnit.SECONDS);
+        cachedRoundId = roundId;
+        cachedPhase = "BETTING";
+        cachedStartedAt = System.currentTimeMillis();
 
-        gameBroadcastService.broadcastPhaseChange(roundId, "BETTING");
+        redisTemplate.opsForValue().set("game:current_round_id", roundId);
+        redisTemplate.opsForValue().set("game:round:" + roundId + ":phase", cachedPhase, 120, TimeUnit.SECONDS);
+        redisTemplate.opsForValue().set("game:round:" + roundId + ":started_at", String.valueOf(cachedStartedAt), 120, TimeUnit.SECONDS);
+
+        gameBroadcastService.broadcastPhaseChange(roundId, cachedPhase);
         log.info("Started new round: {}", roundId);
     }
 
-    @Transactional
-    protected void transitionToSpinning(String roundIdStr) {
-        UUID roundId = UUID.fromString(roundIdStr);
-        Round round = roundRepository.findById(roundId).orElse(null);
-
-        if (round == null) {
-            log.warn("Round {} not found in database. Clearing stale Redis state.", roundIdStr);
-            redisTemplate.delete("game:current_round_id");
-            return;
-        }
-
-        if (!"BETTING".equals(round.getStatus())) {
-            log.warn("Round {} DB status is {}, but Redis says BETTING. Clearing stale Redis state.", roundIdStr, round.getStatus());
-            redisTemplate.delete("game:current_round_id");
-            return;
-        }
-
+    protected void transitionToSpinning() {
+        String roundIdStr = cachedRoundId;
+        cachedPhase = "SPINNING";
+        cachedStartedAt = System.currentTimeMillis();
+        
         short winTota = (short) (random.nextInt(5) + 1);
         short winMena = (short) (random.nextInt(5) + 1);
+        cachedWinTota = winTota;
+        cachedWinMena = winMena;
 
-        round.setStatus("SPINNING");
-        round.setWinningRowTota(winTota);
-        round.setWinningRowMena(winMena);
-        round.setSpinningAt(Instant.now());
-        roundRepository.save(round);
-
-        redisTemplate.opsForValue().set("game:round:" + roundIdStr + ":phase", "SPINNING", 120, TimeUnit.SECONDS);
-        redisTemplate.opsForValue().set("game:round:" + roundIdStr + ":started_at", String.valueOf(System.currentTimeMillis()), 120, TimeUnit.SECONDS);
-
-        gameBroadcastService.broadcastPhaseChange(roundIdStr, "SPINNING");
+        redisTemplate.opsForValue().set("game:round:" + roundIdStr + ":phase", cachedPhase, 120, TimeUnit.SECONDS);
+        redisTemplate.opsForValue().set("game:round:" + roundIdStr + ":started_at", String.valueOf(cachedStartedAt), 120, TimeUnit.SECONDS);
+        redisTemplate.opsForValue().set("game:round:" + roundIdStr + ":win_tota", String.valueOf(winTota), 120, TimeUnit.SECONDS);
+        redisTemplate.opsForValue().set("game:round:" + roundIdStr + ":win_mena", String.valueOf(winMena), 120, TimeUnit.SECONDS);
+        
+        gameBroadcastService.broadcastPhaseChange(roundIdStr, cachedPhase);
         log.info("Round {} entered SPINNING phase", roundIdStr);
+
+        CompletableFuture.runAsync(() -> {
+            try {
+                UUID roundId = UUID.fromString(roundIdStr);
+                Round round = roundRepository.findById(roundId).orElse(null);
+                if (round != null && "BETTING".equals(round.getStatus())) {
+                    round.setStatus("SPINNING");
+                    round.setWinningRowTota(winTota);
+                    round.setWinningRowMena(winMena);
+                    round.setSpinningAt(Instant.now());
+                    roundRepository.save(round);
+                }
+            } catch (Exception e) {
+                log.error("Async transitionToSpinning DB update failed", e);
+            }
+        });
     }
 
-    @Transactional
-    protected void finishRound(String roundIdStr) {
-        UUID roundId = UUID.fromString(roundIdStr);
-        Round round = roundRepository.findById(roundId).orElse(null);
+    protected void finishRound() {
+        String roundIdStr = cachedRoundId;
+        cachedPhase = "FINISHED";
+        cachedStartedAt = System.currentTimeMillis();
 
-        if (round == null) {
-            log.warn("Round {} not found in database. Clearing stale Redis state.", roundIdStr);
-            redisTemplate.delete("game:current_round_id");
-            return;
-        }
+        redisTemplate.opsForValue().set("game:round:" + roundIdStr + ":phase", cachedPhase, 120, TimeUnit.SECONDS);
+        redisTemplate.opsForValue().set("game:round:" + roundIdStr + ":started_at", String.valueOf(cachedStartedAt), 120, TimeUnit.SECONDS);
+        gameBroadcastService.broadcastPhaseChange(roundIdStr, cachedPhase);
 
-        if (!"SPINNING".equals(round.getStatus())) {
-            log.warn("Round {} DB status is {}, but Redis says SPINNING. Clearing stale Redis state.", roundIdStr, round.getStatus());
-            redisTemplate.delete("game:current_round_id");
-            return;
-        }
-
-        // Grab values before async — don't pass the managed entity
-        short winTota = round.getWinningRowTota();
-        short winMena = round.getWinningRowMena();
-
-        // Mark round FINISHED immediately — this is the fast path
-        round.setStatus("FINISHED");
-        round.setFinishedAt(Instant.now());
-        roundRepository.save(round);
-
-        // Update Redis immediately so new round can start (with 120s TTL)
-        redisTemplate.opsForValue().set("game:round:" + roundIdStr + ":phase", "FINISHED", 120, TimeUnit.SECONDS);
-        redisTemplate.opsForValue().set("game:round:" + roundIdStr + ":started_at",
-            String.valueOf(System.currentTimeMillis()), 120, TimeUnit.SECONDS);
-
-        // Broadcast phase NOW — before payout processing
-        gameBroadcastService.broadcastPhaseChange(roundIdStr, "FINISHED");
-
+        Short winTota = cachedWinTota;
+        Short winMena = cachedWinMena;
+        
         log.info("Round {} FINISHED — winTota={} winMena={}", roundIdStr, winTota, winMena);
 
-        // Process payouts asynchronously — does not block the scheduler
-        gamePayoutService.processPayoutsAsync(roundId, winTota, winMena, roundIdStr);
+        CompletableFuture.runAsync(() -> {
+            try {
+                UUID roundId = UUID.fromString(roundIdStr);
+                Round round = roundRepository.findById(roundId).orElse(null);
+                if (round != null && "SPINNING".equals(round.getStatus())) {
+                    round.setStatus("FINISHED");
+                    round.setFinishedAt(Instant.now());
+                    roundRepository.save(round);
+                }
+                if (winTota != null && winMena != null) {
+                    gamePayoutService.processPayoutsAsync(roundId, winTota, winMena, roundIdStr);
+                }
+            } catch (Exception e) {
+                log.error("Async finishRound DB update failed", e);
+            }
+        });
     }
 }

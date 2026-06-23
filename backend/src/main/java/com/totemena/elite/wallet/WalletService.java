@@ -39,15 +39,13 @@ public class WalletService {
             throw new IllegalArgumentException("Amount must be greater than zero");
         }
 
-        Wallet wallet = walletRepository.findByUserIdForUpdate(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Wallet not found"));
-
-        if (wallet.getBalancePaise() < amountPaise) {
+        int updated = walletRepository.deductBalance(userId, amountPaise);
+        if (updated == 0) {
             throw new InsufficientBalanceException("Insufficient balance");
         }
 
-        wallet.setBalancePaise(wallet.getBalancePaise() - amountPaise);
-        walletRepository.save(wallet);
+        Wallet wallet = walletRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Wallet not found"));
 
         User user = userRepository.getReferenceById(userId);
         
@@ -68,11 +66,13 @@ public class WalletService {
             throw new IllegalArgumentException("Amount must be greater than zero");
         }
 
-        Wallet wallet = walletRepository.findByUserIdForUpdate(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Wallet not found"));
+        int updated = walletRepository.addBalance(userId, amountPaise);
+        if (updated == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Wallet not found");
+        }
 
-        wallet.setBalancePaise(wallet.getBalancePaise() + amountPaise);
-        walletRepository.save(wallet);
+        Wallet wallet = walletRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Wallet not found"));
 
         User user = userRepository.getReferenceById(userId);
 

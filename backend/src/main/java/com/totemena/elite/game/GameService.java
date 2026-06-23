@@ -32,6 +32,10 @@ public class GameService {
     private final org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
     private final GameScheduler gameScheduler;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    @org.springframework.context.annotation.Lazy
+    private GameService self;
+
     public BetResultResponse placeBet(User user, PlaceBetRequest request) {
         StopWatch sw = new StopWatch();
         sw.start("memoryStateCheck");
@@ -51,14 +55,14 @@ public class GameService {
         
         try {
             sw.start("executeNewBetTransaction");
-            BetResultResponse res = executeNewBetTransaction(user, request, roundId);
+            BetResultResponse res = self.executeNewBetTransaction(user, request, roundId);
             sw.stop();
             log.info("Optimistic PlaceBet profiling: {}", sw.prettyPrint());
             return res;
         } catch (DataIntegrityViolationException e) {
             sw.stop();
             sw.start("handleDuplicateOrUpdate");
-            BetResultResponse res = handleDuplicateOrUpdate(user, request, roundId);
+            BetResultResponse res = self.handleDuplicateOrUpdate(user, request, roundId);
             sw.stop();
             log.info("Fallback PlaceBet profiling: {}", sw.prettyPrint());
             return res;

@@ -141,6 +141,8 @@ public class GameScheduler {
         }
 
         if (!"BETTING".equals(round.getStatus())) {
+            log.warn("Round {} DB status is {}, but Redis says BETTING. Clearing stale Redis state.", roundIdStr, round.getStatus());
+            redisTemplate.delete("game:current_round_id");
             return;
         }
 
@@ -171,7 +173,11 @@ public class GameScheduler {
             return;
         }
 
-        if (!"SPINNING".equals(round.getStatus())) return;
+        if (!"SPINNING".equals(round.getStatus())) {
+            log.warn("Round {} DB status is {}, but Redis says SPINNING. Clearing stale Redis state.", roundIdStr, round.getStatus());
+            redisTemplate.delete("game:current_round_id");
+            return;
+        }
 
         // Grab values before async — don't pass the managed entity
         short winTota = round.getWinningRowTota();

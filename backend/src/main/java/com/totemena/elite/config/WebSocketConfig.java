@@ -25,17 +25,21 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.enableSimpleBroker("/topic", "/queue");
+        registry.enableSimpleBroker("/topic", "/queue")
+            .setHeartbeatValue(new long[]{10000, 10000}); // 10s heartbeat
         registry.setApplicationDestinationPrefixes("/app");
         registry.setUserDestinationPrefix("/user");
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
+        // Raw WebSocket endpoint (no SockJS)
         registry.addEndpoint("/ws")
                 .setAllowedOriginPatterns("*")
-                .addInterceptors(jwtHandshakeInterceptor)
-                .withSockJS();
+                .addInterceptors(jwtHandshakeInterceptor);
+        
+        // Keep SockJS as fallback ONLY for dev environments
+        // Disabled on Railway because SockJS negotiation fails through Railway proxy
     }
 
     @Override

@@ -6,7 +6,12 @@
   <title>Sign In · Tota & Mena Elite</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@700;900&family=Inter:wght@400;600;700;800&family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- font-display=swap: page renders immediately with system font, 
+       then swaps to Cinzel/Sora when loaded — eliminates render blocking -->
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@700;900&family=Inter:wght@400;600;700;800&family=Sora:wght@400;600;700;800&display=swap&font-display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@700;900&family=Inter:wght@400;600;700;800&family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet">
+  </noscript>
   <link rel="stylesheet" href="../style.css">
 </head>
 <body class="auth-body">

@@ -2,22 +2,17 @@
 
 Set these in Railway → Your Service → Variables tab:
 
-| Variable       | Value                                      | Notes                          |
-|----------------|--------------------------------------------|--------------------------------|
-| JWT_SECRET     | (64+ random chars)                         | Generate: openssl rand -hex 64 |
-| DB_URL         | (from Railway MySQL plugin → JDBC URL)     | Copy from MySQL plugin vars    |
-| DB_USER        | (from Railway MySQL plugin)                |                                |
-| DB_PASS        | (from Railway MySQL plugin)                |                                |
-| REDIS_URL      | (from Railway Redis plugin → REDIS_URL)    | Copy from Redis plugin vars    |
-| FRONTEND_ORIGIN| https://your-app-name.up.railway.app       | Your Railway public domain     |
+| Variable                     | Value                                                                                                                                                 | Notes                                      |
+|------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------|
+| JWT_SECRET                   | (64+ random chars)                                                                                                                                    | Generate: openssl rand -hex 64             |
+| SPRING_DATASOURCE_URL        | jdbc:mysql://${{MySQL.MYSQLHOST}}:${{MySQL.MYSQLPORT}}/${{MySQL.MYSQLDATABASE}}?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&rewriteBatchedStatements=true | Ensure query params are included!          |
+| SPRING_DATASOURCE_USERNAME   | ${{MySQL.MYSQLUSER}}                                                                                                                                  |                                            |
+| SPRING_DATASOURCE_PASSWORD   | ${{MySQL.MYSQLPASSWORD}}                                                                                                                              |                                            |
+| REDIS_URL                    | ${{Redis.REDIS_URL}}                                                                                                                                  | Provided by Railway Redis plugin           |
+| FRONTEND_ORIGIN              | https://your-app-name.up.railway.app                                                                                                                  | Your exact Railway public domain           |
+| JAVA_OPTS                    | -Xmx256m -Xms256m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m                                                                                          | Memory optimization for free tier          |
+| MAVEN_OPTS                   | -Xmx256m                                                                                                                                              | Prevents build crashes on free tier        |
 
-Railway automatically sets PORT — do not set it manually.
-Railway MySQL plugin automatically provides MYSQLHOST, MYSQLPORT,
-MYSQLDATABASE, MYSQLUSER, MYSQLPASSWORD — build DB_URL from these:
-  DB_URL = jdbc:mysql://${MYSQLHOST}:${MYSQLPORT}/${MYSQLDATABASE}?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC
+Railway automatically sets `PORT` — do not set it manually.
 
-Alternatively set in application.yml using Railway's reference variables:
-  url: jdbc:mysql://${MYSQLHOST}:${MYSQLPORT:3306}/${MYSQLDATABASE}?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC
-
-Add this alternative datasource URL format to application.yml:
-  url: ${DB_URL:jdbc:mysql://${MYSQLHOST:localhost}:${MYSQLPORT:3306}/${MYSQLDATABASE:totemena}?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&rewriteBatchedStatements=true}
+*(Note: Spring Boot automatically maps `SPRING_DATASOURCE_*` to the `spring.datasource.*` settings inside your `application.yml`.)*

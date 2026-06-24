@@ -37,6 +37,7 @@ public class GameService {
     private GameService self;
 
     public BetResultResponse placeBet(User user, PlaceBetRequest request) {
+        long t0 = System.currentTimeMillis();
         String currentRoundIdStr = gameScheduler.getCachedRoundId();
         if (currentRoundIdStr == null) {
             throw new BettingClosedException("Game is not active");
@@ -48,27 +49,41 @@ public class GameService {
         }
 
         UUID roundId = UUID.fromString(currentRoundIdStr);
+        long t1 = System.currentTimeMillis();
+        log.info("--- PLACE BET TIMING: Phase check took {}ms", (t1 - t0));
 
         if (request.getIdempotencyKey() != null) {
             java.util.Optional<Bet> idemMatch = betRepository.findByIdempotencyKey(request.getIdempotencyKey());
             if (idemMatch.isPresent()) {
+                log.info("--- PLACE BET TIMING: Idempotency hit took {}ms", (System.currentTimeMillis() - t1));
                 return buildResponse(idemMatch.get(), walletService.getBalance(user.getId()));
             }
         }
+        long t2 = System.currentTimeMillis();
+        log.info("--- PLACE BET TIMING: Idempotency check took {}ms", (t2 - t1));
 
         Bet existingBetForBird = betRepository.findByRoundIdAndUserIdAndBird(roundId, user.getId(), request.getBird()).orElse(null);
+        long t3 = System.currentTimeMillis();
+        log.info("--- PLACE BET TIMING: Existing bet check took {}ms", (t3 - t2));
 
         if (existingBetForBird == null) {
-            return self.placeNewBet(user, request, roundId);
+            BetResultResponse res = self.placeNewBet(user, request, roundId);
+            log.info("--- PLACE BET TIMING: placeNewBet took {}ms", (System.currentTimeMillis() - t3));
+            return res;
         } else {
-            return self.updateExistingBet(user, request, existingBetForBird);
+            BetResultResponse res = self.updateExistingBet(user, request, existingBetForBird);
+            log.info("--- PLACE BET TIMING: updateExistingBet took {}ms", (System.currentTimeMillis() - t3));
+            return res;
         }
     }
 
     @Transactional
     public BetResultResponse placeNewBet(User user, PlaceBetRequest request, UUID roundId) {
+        long t0 = System.currentTimeMillis();
         WalletTransaction tx = walletService.deductFunds(
             user.getId(), request.getAmountPaise(), "BET_PLACED", null);
+        long t1 = System.currentTimeMillis();
+        log.info("--- PLACE BET TIMING (placeNewBet): deductFunds took {}ms", (t1 - t0));
 
         Round round = roundRepository.getReferenceById(roundId);
         Bet bet = Bet.builder()
@@ -82,17 +97,12 @@ public class GameService {
                 .build();
                 
         bet = betRepository.save(bet);
+        long t2 = System.currentTimeMillis();
+        log.info("--- PLACE BET TIMING (placeNewBet): betRepository.save took {}ms", (t2 - t1));
 
-        // We can cast TransactionRepository or inject it. Wait, GameService doesn't have TransactionRepository.
-        // I need to add TransactionRepository to GameService OR move this to WalletService.
-        // Let's inject TransactionRepository into GameService, or just let Bet save natively and update tx?
-        // Let's inject TransactionRepository. Wait! It's better to add the method to WalletService!
-        // The user said: "Add to TransactionRepository instead" and "betRepository.updateTransactionRef". That was a typo by the user!
-        // The user wrote: betRepository.updateTransactionRef(tx.getId(), bet.getId());
-        // BUT they said to add the method to TransactionRepository!
-        // Let me just inject TransactionRepository via constructor, wait, I can't easily add to constructor via replace.
-        // I'll call a new method in WalletService: walletService.updateTransactionReference(tx.getId(), bet.getId());
         walletService.updateTransactionReference(tx.getId(), bet.getId());
+        long t3 = System.currentTimeMillis();
+        log.info("--- PLACE BET TIMING (placeNewBet): updateTransactionReference took {}ms", (t3 - t2));
 
         BetAckEvent ack = new BetAckEvent(
             bet.getId().toString(), bet.getBird(), bet.getSelectedRow(),
@@ -100,6 +110,8 @@ public class GameService {
             request.getIdempotencyKey() != null ? request.getIdempotencyKey().toString() : null
         );
         gameBroadcastService.sendBetAck(user.getId(), ack);
+        long t4 = System.currentTimeMillis();
+        log.info("--- PLACE BET TIMING (placeNewBet): sendBetAck took {}ms", (t4 - t3));
         return buildResponse(bet, tx.getBalanceAfterPaise());
     }
 

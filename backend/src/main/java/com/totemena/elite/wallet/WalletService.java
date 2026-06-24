@@ -26,6 +26,14 @@ public class WalletService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Wallet not found"));
     }
 
+    public long getBalance(UUID userId) {
+        Long balance = walletRepository.getBalanceAfterDeduct(userId);
+        if (balance == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Wallet not found");
+        }
+        return balance;
+    }
+
     public Page<WalletTransaction> getTransactions(UUID userId, int page, int size, String type) {
         if (type != null && !type.isBlank()) {
             return transactionRepository.findByUserIdAndTypeOrderByCreatedAtDesc(userId, type, PageRequest.of(page, size));
@@ -34,9 +42,14 @@ public class WalletService {
     }
 
     @Transactional
+    public void updateTransactionReference(UUID txId, UUID referenceId) {
+        transactionRepository.updateReferenceId(txId, referenceId);
+    }
+
+    @Transactional
     public WalletTransaction deductFunds(UUID userId, long amountPaise, String type, UUID referenceId) {
         if (amountPaise <= 0) {
-            throw new IllegalArgumentException("Amount must be greater than zero");
+            throw new IllegalArgumentException("Amount must be positive");
         }
 
         int updated = walletRepository.deductBalance(userId, amountPaise);
@@ -44,16 +57,15 @@ public class WalletService {
             throw new InsufficientBalanceException("Insufficient balance");
         }
 
-        Wallet wallet = walletRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Wallet not found"));
+        long newBalance = walletRepository.getBalanceAfterDeduct(userId);
 
         User user = userRepository.getReferenceById(userId);
         
         WalletTransaction tx = WalletTransaction.builder()
                 .user(user)
                 .type(type)
-                .amountPaise(-amountPaise) // negative for deduction
-                .balanceAfterPaise(wallet.getBalancePaise())
+                .amountPaise(-amountPaise)
+                .balanceAfterPaise(newBalance)
                 .referenceId(referenceId)
                 .build();
                 
@@ -63,7 +75,7 @@ public class WalletService {
     @Transactional
     public WalletTransaction addFunds(UUID userId, long amountPaise, String type, UUID referenceId) {
         if (amountPaise <= 0) {
-            throw new IllegalArgumentException("Amount must be greater than zero");
+            throw new IllegalArgumentException("Amount must be positive");
         }
 
         int updated = walletRepository.addBalance(userId, amountPaise);
@@ -71,16 +83,15 @@ public class WalletService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Wallet not found");
         }
 
-        Wallet wallet = walletRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Wallet not found"));
+        long newBalance = walletRepository.getBalanceAfterAdd(userId);
 
         User user = userRepository.getReferenceById(userId);
 
         WalletTransaction tx = WalletTransaction.builder()
                 .user(user)
                 .type(type)
-                .amountPaise(amountPaise) // positive for addition
-                .balanceAfterPaise(wallet.getBalancePaise())
+                .amountPaise(amountPaise)
+                .balanceAfterPaise(newBalance)
                 .referenceId(referenceId)
                 .build();
 

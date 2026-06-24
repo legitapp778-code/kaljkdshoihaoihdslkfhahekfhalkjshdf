@@ -16,6 +16,8 @@ const STATE = {
   betStatus: { tota: null, mena: null }
 };
 
+let betDebounceTimer = { tota: null, mena: null };
+
 let currentHistoryFilter = 'all';
 
 /* ══════════════════════════════════════════════════════════
@@ -313,18 +315,34 @@ async function fetchUserStats() {
   }
 
   try {
-    // User stats — GET /api/v1/stats/user
-    const res = await apiFetch('/api/v1/stats/user');
+    const isResultsPage = window.location.pathname.includes('results');
+    const isTransactionsPage = window.location.pathname.includes('transactions');
+    
+    const reqs = [apiFetch('/api/v1/stats/user')];
+    if (!isResultsPage) {
+        reqs.push(apiFetch('/api/v1/game/history?page=0&size=20'));
+    } else {
+        reqs.push(Promise.resolve(null));
+    }
+    
+    if (isTransactionsPage) {
+        reqs.push(apiFetch('/api/v1/wallet/transactions?page=0&size=20'));
+    } else {
+        reqs.push(Promise.resolve(null));
+    }
+
+    const [res, historyRes, txRes] = await Promise.all(reqs);
+
     if (res && res.ok) {
       const data = await res.json();
       sessionStorage.setItem(cacheKey, JSON.stringify(data));
       renderData(data);
 
       // History and transaction loading logic
-      if (window.location.pathname.includes('results')) {
+      if (isResultsPage) {
         if (typeof loadHistoryTable === 'function') loadHistoryTable();
       }
-      if (window.location.pathname.includes('transactions')) {
+      if (isTransactionsPage) {
         if (typeof loadTransactionsTable === 'function') loadTransactionsTable();
       }
 
@@ -343,8 +361,8 @@ async function fetchUserStats() {
         deleteAccountBtn.addEventListener('click', async () => {
           if (confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
             try {
-              const res = await apiFetch('/api/v1/user/me', { method: 'DELETE' });
-              if (res.ok) {
+              const resDel = await apiFetch('/api/v1/user/me', { method: 'DELETE' });
+              if (resDel.ok) {
                 localStorage.removeItem('accessToken');
                 localStorage.removeItem('refreshToken');
                 window.location.href = isSubdir ? '../pages/signin.html' : 'pages/signin.html';
@@ -363,11 +381,9 @@ async function fetchUserStats() {
     }
 
     // Game history — GET /api/v1/game/history?page=0&size=20
-    const historyRes = await apiFetch('/api/v1/game/history?page=0&size=20');
     if (historyRes && historyRes.ok) {
       const historyData = await historyRes.json();
       const historyTable = document.querySelector('.history-table');
-      const isResultsPage = window.location.pathname.includes('results');
       if (historyTable && !isResultsPage && historyData.content && historyData.content.length > 0) {
         const headerHtml = `<div class="ht-header"><span>Type</span><span>Amount</span><span>Date</span></div>`;
 
@@ -390,9 +406,7 @@ async function fetchUserStats() {
     }
 
     // Transactions page — GET /api/v1/wallet/transactions?page=0&size=20
-    if (window.location.pathname.includes('transactions')) {
-      const txRes = await apiFetch('/api/v1/wallet/transactions?page=0&size=20');
-      if (txRes && txRes.ok) {
+    if (txRes && txRes.ok) {
         const txData = await txRes.json();
         const txTable = document.querySelector('.history-table');
         if (txTable && txData.content && txData.content.length > 0) {
@@ -417,7 +431,6 @@ async function fetchUserStats() {
             }).join('');
         }
       }
-    }
   } catch (e) {
     console.error('Error fetching user stats', e);
   }
@@ -447,6 +460,11 @@ function updateBetButtonStates() {
       btn.style.background = 'linear-gradient(135deg, #dc2626, #991b1b)';
       btn.style.borderColor = '#dc2626';
       btn.disabled = false;
+    } else if (status === 'PLACING') {
+      label.textContent = `PLACING...`;
+      btn.style.background = '#eab308';
+      btn.style.borderColor = '#ca8a04';
+      btn.disabled = true;
     } else if (hasBet && STATE.phase !== 'BETTING') {
       label.textContent = `BET PLACED ✓ ₹${fmtCur(STATE.bets[bird].amount)}`;
       btn.style.background = 'linear-gradient(135deg, #c9a04c, #a07830)';
@@ -481,6 +499,8 @@ function setupPanel(bird, chips, input, btn) {
   chips.forEach(chip => {
     chip.addEventListener('click', () => {
       if (STATE.phase !== 'BETTING') return showToast('Betting is locked!');
+      if (STATE.bets[bird] && STATE.bets[bird].amount > 0) return showToast('Cancel your current bet first to change the amount!');
+      
       STATE.panelBetAmounts[bird] = +chip.dataset.amt;
       chips.forEach(c => c.classList.remove('chip--selected'));
       chip.classList.add('chip--selected');
@@ -491,6 +511,10 @@ function setupPanel(bird, chips, input, btn) {
   });
   if (input) {
     input.addEventListener('input', () => {
+      if (STATE.bets[bird] && STATE.bets[bird].amount > 0) {
+        input.value = STATE.panelBetAmounts[bird] || '';
+        return showToast('Cancel your current bet first to change the amount!');
+      }
       STATE.panelBetAmounts[bird] = +input.value || 0;
       chips.forEach(c => c.classList.remove('chip--selected'));
       renderBoard();
@@ -514,9 +538,15 @@ function selectRow(bird, row) {
   
   // IMMEDIATELY render board to show selection, regardless of whether a bet exists
   renderBoard();
-  
-  if (STATE.bets[bird].amount > 0) {
-    placeBet(bird);
+
+  // Automatically update the bet ONLY if they've already placed one
+  if (STATE.bets[bird] && STATE.bets[bird].amount > 0) {
+    clearTimeout(betDebounceTimer[bird]);
+    betDebounceTimer[bird] = setTimeout(() => {
+      if (STATE.selectedRows[bird] === row && STATE.phase === 'BETTING') {
+        placeBet(bird);
+      }
+    }, 300);
   }
 }
 
@@ -531,13 +561,12 @@ async function placeBet(bird) {
   const diffPaise = (amt - STATE.bets[bird].amount) * 100;
   if (diffPaise > STATE.balancePaise) return showToast('Insufficient balance!');
 
-  // Set button to loading state
-  const btn = document.getElementById(`btn-${bird}`);
-  const originalLabel = btn.querySelector('.bet-btn__label').textContent;
-  if (btn) {
-    btn.querySelector('.bet-btn__label').textContent = 'PLACING...';
-    btn.disabled = true;
-  }
+  // Optimistic UI update
+  const originalState = { row: STATE.bets[bird].row, amount: STATE.bets[bird].amount };
+  STATE.bets[bird] = { row, amount: amt };
+  STATE.betStatus[bird] = 'PLACING';
+  updateBetButtonStates();
+  renderBoard();
 
   const token = localStorage.getItem('accessToken');
   try {
@@ -559,23 +588,23 @@ async function placeBet(bird) {
     });
     if (!res.ok) {
       const data = await res.json();
-      showToast(data.error || 'Failed to place bet');
-      updateBetButtonStates(); // restore button
-      return;
+      throw new Error(data.error || 'Failed to place bet');
     }
     const data = await res.json();
     STATE.balancePaise = data.balanceAfterPaise;
+    STATE.betStatus[bird] = null; // revert to default placed status
     updateBalanceDisplay('down');
-
-    // Success WS event will come, but we update UI optimistically
-    STATE.bets[bird] = { row, amount: amt };
-    renderBoard();
-    updatePossibleWin();
     updateBetButtonStates();
+    updatePossibleWin();
     showToast(`✅ Bet placed on ${bird === 'tota' ? 'T' : 'M'}${row} · ₹${fmtCur(amt)} on ${bird === 'tota' ? 'Tota' : 'Mena'}`);
   } catch (error) {
-    showToast('Network error while placing bet');
-    updateBetButtonStates(); // restore button
+    // Rollback
+    STATE.bets[bird] = originalState;
+    STATE.betStatus[bird] = null;
+    updateBetButtonStates();
+    renderBoard();
+    updatePossibleWin();
+    showToast(error.message || 'Network error while placing bet');
   }
 }
 

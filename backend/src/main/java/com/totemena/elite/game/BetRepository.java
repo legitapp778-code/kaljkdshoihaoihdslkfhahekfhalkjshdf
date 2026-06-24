@@ -43,4 +43,20 @@ public interface BetRepository extends JpaRepository<Bet, UUID> {
 
     @Query("SELECT COALESCE(SUM(b.payoutPaise), 0) FROM Bet b WHERE b.user.id = :userId AND b.status = 'WON'")
     Long sumWinningsByUser(UUID userId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE Bet b SET b.selectedRow = :row, b.amountPaise = :amount, b.idempotencyKey = :key WHERE b.id = :id")
+    int updateBetRowAndAmount(@org.springframework.data.repository.query.Param("id") UUID id,
+                              @org.springframework.data.repository.query.Param("row") short row,
+                              @org.springframework.data.repository.query.Param("amount") long amount,
+                              @org.springframework.data.repository.query.Param("key") UUID key);
+
+    @Query("SELECT b FROM Bet b WHERE " +
+           "(b.idempotencyKey = :idemKey) OR " +
+           "(b.round.id = :roundId AND b.user.id = :userId AND b.bird = :bird) " +
+           "ORDER BY b.createdAt DESC")
+    List<Bet> findForPlaceBet(@org.springframework.data.repository.query.Param("idemKey") UUID idemKey,
+                              @org.springframework.data.repository.query.Param("roundId") UUID roundId,
+                              @org.springframework.data.repository.query.Param("userId") UUID userId,
+                              @org.springframework.data.repository.query.Param("bird") String bird);
 }

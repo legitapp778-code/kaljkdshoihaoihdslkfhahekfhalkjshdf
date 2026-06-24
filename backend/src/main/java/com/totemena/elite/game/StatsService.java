@@ -68,7 +68,7 @@ public class StatsService {
         response.put("recentResults", recentResults);
 
         try {
-            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(response), 10, TimeUnit.SECONDS);
+            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(response), 15, TimeUnit.SECONDS);
         } catch (Exception e) {
             // ignore cache write errors
         }
@@ -78,6 +78,16 @@ public class StatsService {
 
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public Map<String, Object> getUserStats(UUID userId) {
+        String userCacheKey = "stats:user:" + userId;
+        try {
+            String cachedUserStats = redisTemplate.opsForValue().get(userCacheKey);
+            if (cachedUserStats != null) {
+                return objectMapper.readValue(cachedUserStats, Map.class);
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+
         User user = userRepository.getReferenceById(userId);
         Map<String, Object> response = new HashMap<>();
 
@@ -100,6 +110,12 @@ public class StatsService {
         response.put("withdrawnThisMonthPaise", withdrawn != null ? Math.abs(withdrawn) : 0);
 
         response.put("vipTier", "STANDARD");
+
+        try {
+            redisTemplate.opsForValue().set(userCacheKey, objectMapper.writeValueAsString(response), 5, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            // ignore
+        }
 
         return response;
     }

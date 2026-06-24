@@ -25,4 +25,10 @@ public interface WalletRepository extends JpaRepository<Wallet, UUID> {
     @Modifying
     @Query("UPDATE Wallet w SET w.balancePaise = w.balancePaise + :amount WHERE w.user.id = :userId")
     int addBalance(@Param("userId") UUID userId, @Param("amount") long amount);
+
+    @Query("SELECT w.balancePaise FROM Wallet w WHERE w.user.id = :userId")
+    Long getBalanceAfterDeduct(@Param("userId") UUID userId);
+
+    @Query("SELECT w.balancePaise FROM Wallet w WHERE w.user.id = :userId")
+    Long getBalanceAfterAdd(@Param("userId") UUID userId);
 }

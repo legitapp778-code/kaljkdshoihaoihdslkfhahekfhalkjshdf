@@ -37,9 +37,6 @@ public class GameService {
     private GameService self;
 
     public BetResultResponse placeBet(User user, PlaceBetRequest request) {
-        StopWatch sw = new StopWatch();
-        sw.start("memoryStateCheck");
-        
         String currentRoundIdStr = gameScheduler.getCachedRoundId();
         if (currentRoundIdStr == null) {
             throw new BettingClosedException("Game is not active");
@@ -51,29 +48,38 @@ public class GameService {
         }
 
         UUID roundId = UUID.fromString(currentRoundIdStr);
-        sw.stop();
-        
-        try {
-            sw.start("executeNewBetTransaction");
-            BetResultResponse res = self.executeNewBetTransaction(user, request, roundId);
-            sw.stop();
-            log.info("Optimistic PlaceBet profiling: {}", sw.prettyPrint());
-            return res;
-        } catch (DataIntegrityViolationException e) {
-            sw.stop();
-            sw.start("handleDuplicateOrUpdate");
-            BetResultResponse res = self.handleDuplicateOrUpdate(user, request, roundId);
-            sw.stop();
-            log.info("Fallback PlaceBet profiling: {}", sw.prettyPrint());
-            return res;
+
+        java.util.List<Bet> existing = betRepository.findForPlaceBet(
+            request.getIdempotencyKey(), roundId, user.getId(), request.getBird());
+
+        Bet idempotencyMatch = existing.stream()
+            .filter(b -> request.getIdempotencyKey() != null &&
+                         request.getIdempotencyKey().equals(b.getIdempotencyKey()))
+            .findFirst().orElse(null);
+
+        if (idempotencyMatch != null) {
+            return buildResponse(idempotencyMatch, walletService.getBalance(user.getId()));
+        }
+
+        Bet existingBetForBird = existing.stream()
+            .filter(b -> b.getUser().getId().equals(user.getId()) &&
+                         b.getBird().equals(request.getBird()))
+            .findFirst().orElse(null);
+
+        if (existingBetForBird == null) {
+            return self.placeNewBet(user, request, roundId);
+        } else {
+            return self.updateExistingBet(user, request, existingBetForBird);
         }
     }
 
     @Transactional
-    public BetResultResponse executeNewBetTransaction(User user, PlaceBetRequest request, UUID roundId) {
-        Round round = roundRepository.getReferenceById(roundId);
+    public BetResultResponse placeNewBet(User user, PlaceBetRequest request, UUID roundId) {
+        WalletTransaction tx = walletService.deductFunds(
+            user.getId(), request.getAmountPaise(), "BET_PLACED", null);
 
-        Bet newBet = Bet.builder()
+        Round round = roundRepository.getReferenceById(roundId);
+        Bet bet = Bet.builder()
                 .round(round)
                 .user(user)
                 .bird(request.getBird())
@@ -83,124 +89,102 @@ public class GameService {
                 .status("PENDING")
                 .build();
                 
-        // saveAndFlush ensures the UNIQUE constraint exception is thrown immediately
-        Bet savedBet = betRepository.saveAndFlush(newBet);
-        WalletTransaction tx = walletService.deductFunds(user.getId(), request.getAmountPaise(), "BET_PLACED", savedBet.getId());
-        
-        BetAckEvent ackEvent = new BetAckEvent(
-                savedBet.getId().toString(),
-                savedBet.getBird(),
-                savedBet.getSelectedRow(),
-                savedBet.getAmountPaise(),
-                tx.getBalanceAfterPaise(),
-                savedBet.getIdempotencyKey().toString()
+        bet = betRepository.save(bet);
+
+        // We can cast TransactionRepository or inject it. Wait, GameService doesn't have TransactionRepository.
+        // I need to add TransactionRepository to GameService OR move this to WalletService.
+        // Let's inject TransactionRepository into GameService, or just let Bet save natively and update tx?
+        // Let's inject TransactionRepository. Wait! It's better to add the method to WalletService!
+        // The user said: "Add to TransactionRepository instead" and "betRepository.updateTransactionRef". That was a typo by the user!
+        // The user wrote: betRepository.updateTransactionRef(tx.getId(), bet.getId());
+        // BUT they said to add the method to TransactionRepository!
+        // Let me just inject TransactionRepository via constructor, wait, I can't easily add to constructor via replace.
+        // I'll call a new method in WalletService: walletService.updateTransactionReference(tx.getId(), bet.getId());
+        walletService.updateTransactionReference(tx.getId(), bet.getId());
+
+        BetAckEvent ack = new BetAckEvent(
+            bet.getId().toString(), bet.getBird(), bet.getSelectedRow(),
+            bet.getAmountPaise(), tx.getBalanceAfterPaise(),
+            request.getIdempotencyKey() != null ? request.getIdempotencyKey().toString() : null
         );
-
-        gameBroadcastService.sendBetAck(user.getId(), ackEvent);
-
-        return BetResultResponse.builder()
-                .betId(savedBet.getId())
-                .bird(savedBet.getBird())
-                .selectedRow(savedBet.getSelectedRow())
-                .amountPaise(savedBet.getAmountPaise())
-                .balanceAfterPaise(tx.getBalanceAfterPaise())
-                .build();
+        gameBroadcastService.sendBetAck(user.getId(), ack);
+        return buildResponse(bet, tx.getBalanceAfterPaise());
     }
 
     @Transactional
-    public BetResultResponse handleDuplicateOrUpdate(User user, PlaceBetRequest request, UUID roundId) {
-        Optional<Bet> existingBetByIdempotency = betRepository.findByIdempotencyKey(request.getIdempotencyKey());
-        if (existingBetByIdempotency.isPresent()) {
-            Bet bet = existingBetByIdempotency.get();
-            return BetResultResponse.builder()
-                    .betId(bet.getId())
-                    .bird(bet.getBird())
-                    .selectedRow(bet.getSelectedRow())
-                    .amountPaise(bet.getAmountPaise())
-                    .balanceAfterPaise(walletService.getWallet(user.getId()).getBalancePaise())
-                    .build();
-        }
-
-        Bet existingBet = betRepository.findByRoundIdAndUserIdAndBird(roundId, user.getId(), request.getBird())
-                .orElseThrow(() -> new IllegalStateException("Duplicate constraint failed but no existing bet found"));
-        
-        long diff = request.getAmountPaise() - existingBet.getAmountPaise();
+    public BetResultResponse updateExistingBet(User user, PlaceBetRequest request, Bet existing) {
+        long diff = request.getAmountPaise() - existing.getAmountPaise();
         long finalBalance;
-        Bet savedBet;
 
         if (diff > 0) {
-            WalletTransaction tx = walletService.deductFunds(user.getId(), diff, "BET_UPDATED", existingBet.getId());
-            existingBet.setAmountPaise(request.getAmountPaise());
-            existingBet.setSelectedRow(request.getSelectedRow());
-            savedBet = betRepository.save(existingBet);
+            WalletTransaction tx = walletService.deductFunds(
+                user.getId(), diff, "BET_UPDATED", existing.getId());
             finalBalance = tx.getBalanceAfterPaise();
         } else if (diff < 0) {
-            long refund = Math.abs(diff);
-            WalletTransaction tx = walletService.addFunds(user.getId(), refund, "BET_REFUND", existingBet.getId());
-            existingBet.setAmountPaise(request.getAmountPaise());
-            existingBet.setSelectedRow(request.getSelectedRow());
-            savedBet = betRepository.save(existingBet);
+            WalletTransaction tx = walletService.addFunds(
+                user.getId(), Math.abs(diff), "BET_REFUND", existing.getId());
             finalBalance = tx.getBalanceAfterPaise();
         } else {
-            existingBet.setSelectedRow(request.getSelectedRow());
-            savedBet = betRepository.save(existingBet);
-            finalBalance = walletService.getWallet(user.getId()).getBalancePaise();
+            finalBalance = walletService.getBalance(user.getId());
         }
 
-        BetAckEvent ackEvent = new BetAckEvent(
-                savedBet.getId().toString(),
-                savedBet.getBird(),
-                savedBet.getSelectedRow(),
-                savedBet.getAmountPaise(),
-                finalBalance,
-                savedBet.getIdempotencyKey().toString()
+        betRepository.updateBetRowAndAmount(
+            existing.getId(),
+            request.getSelectedRow(),
+            request.getAmountPaise(),
+            request.getIdempotencyKey()
         );
+        existing.setSelectedRow(request.getSelectedRow());
+        existing.setAmountPaise(request.getAmountPaise());
 
-        gameBroadcastService.sendBetAck(user.getId(), ackEvent);
-
-        return BetResultResponse.builder()
-                .betId(savedBet.getId())
-                .bird(savedBet.getBird())
-                .selectedRow(savedBet.getSelectedRow())
-                .amountPaise(savedBet.getAmountPaise())
-                .balanceAfterPaise(finalBalance)
-                .build();
+        BetAckEvent ack = new BetAckEvent(
+            existing.getId().toString(), existing.getBird(),
+            request.getSelectedRow(), request.getAmountPaise(),
+            finalBalance,
+            request.getIdempotencyKey() != null ? request.getIdempotencyKey().toString() : null
+        );
+        gameBroadcastService.sendBetAck(user.getId(), ack);
+        return buildResponse(existing, finalBalance);
     }
 
     @Transactional
     public long cancelBet(User user, String bird) {
-        // Only allow cancel during BETTING phase
-        String currentRoundIdStr = redisTemplate.opsForValue().get("game:current_round_id");
+        String currentRoundIdStr = gameScheduler.getCachedRoundId();
         if (currentRoundIdStr == null) {
             throw new BettingClosedException("Game is not active");
         }
-        String phase = redisTemplate.opsForValue().get("game:round:" + currentRoundIdStr + ":phase");
-        if (!"BETTING".equals(phase)) {
+        if (!"BETTING".equals(gameScheduler.getCachedPhase())) {
             throw new BettingClosedException("Betting is closed — cannot cancel now");
         }
 
         UUID roundId = UUID.fromString(currentRoundIdStr);
-        Optional<Bet> betOpt = betRepository.findByRoundIdAndUserIdAndBird(roundId, user.getId(), bird);
-        if (betOpt.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No active bet found for " + bird);
-        }
+        Bet bet = betRepository.findByRoundIdAndUserIdAndBird(roundId, user.getId(), bird)
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND, "No active bet found for " + bird));
 
-        Bet bet = betOpt.get();
         if (!"PENDING".equals(bet.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bet is already resolved");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bet already resolved");
         }
 
-        long refundAmount = bet.getAmountPaise();
-        walletService.addFunds(user.getId(), refundAmount, "BET_CANCELLED", bet.getId());
+        long refund = bet.getAmountPaise();
+        WalletTransaction tx = walletService.addFunds(
+            user.getId(), refund, "BET_CANCELLED", bet.getId());
         betRepository.delete(bet);
 
-        long finalBalance = walletService.getWallet(user.getId()).getBalancePaise();
-
-        // Notify user of refund via WS
         gameBroadcastService.sendBalanceUpdate(
-                user.getId(), finalBalance, refundAmount,
-                currentRoundIdStr, "BET_CANCELLED", null);
+            user.getId(), tx.getBalanceAfterPaise(),
+            refund, currentRoundIdStr, "BET_CANCELLED", null);
 
-        return finalBalance;
+        return tx.getBalanceAfterPaise();
+    }
+
+    private BetResultResponse buildResponse(Bet bet, long balance) {
+        return BetResultResponse.builder()
+            .betId(bet.getId())
+            .bird(bet.getBird())
+            .selectedRow(bet.getSelectedRow())
+            .amountPaise(bet.getAmountPaise())
+            .balanceAfterPaise(balance)
+            .build();
     }
 }

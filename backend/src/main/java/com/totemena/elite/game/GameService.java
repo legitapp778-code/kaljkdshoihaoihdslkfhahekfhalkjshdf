@@ -49,22 +49,14 @@ public class GameService {
 
         UUID roundId = UUID.fromString(currentRoundIdStr);
 
-        java.util.List<Bet> existing = betRepository.findForPlaceBet(
-            request.getIdempotencyKey(), roundId, user.getId(), request.getBird());
-
-        Bet idempotencyMatch = existing.stream()
-            .filter(b -> request.getIdempotencyKey() != null &&
-                         request.getIdempotencyKey().equals(b.getIdempotencyKey()))
-            .findFirst().orElse(null);
-
-        if (idempotencyMatch != null) {
-            return buildResponse(idempotencyMatch, walletService.getBalance(user.getId()));
+        if (request.getIdempotencyKey() != null) {
+            java.util.Optional<Bet> idemMatch = betRepository.findByIdempotencyKey(request.getIdempotencyKey());
+            if (idemMatch.isPresent()) {
+                return buildResponse(idemMatch.get(), walletService.getBalance(user.getId()));
+            }
         }
 
-        Bet existingBetForBird = existing.stream()
-            .filter(b -> b.getUser().getId().equals(user.getId()) &&
-                         b.getBird().equals(request.getBird()))
-            .findFirst().orElse(null);
+        Bet existingBetForBird = betRepository.findByRoundIdAndUserIdAndBird(roundId, user.getId(), request.getBird()).orElse(null);
 
         if (existingBetForBird == null) {
             return self.placeNewBet(user, request, roundId);

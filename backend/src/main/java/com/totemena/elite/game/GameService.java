@@ -100,7 +100,8 @@ public class GameService {
         long t2 = System.currentTimeMillis();
         log.info("--- PLACE BET TIMING (placeNewBet): betRepository.save took {}ms", (t2 - t1));
 
-        walletService.updateTransactionReference(tx.getId(), bet.getId());
+        // Let Hibernate manage the association in memory. No extra database roundtrip!
+        tx.setReferenceId(bet.getId());
         long t3 = System.currentTimeMillis();
         log.info("--- PLACE BET TIMING (placeNewBet): updateTransactionReference took {}ms", (t3 - t2));
 

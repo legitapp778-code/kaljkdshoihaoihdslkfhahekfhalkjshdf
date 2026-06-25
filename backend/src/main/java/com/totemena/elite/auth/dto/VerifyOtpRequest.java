@@ -17,4 +17,6 @@ public class VerifyOtpRequest {
     private String displayName;
     
     private String email;
+
+    private Boolean isSignIn;
 }

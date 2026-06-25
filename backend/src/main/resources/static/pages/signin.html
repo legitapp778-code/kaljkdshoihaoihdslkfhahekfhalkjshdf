@@ -101,9 +101,16 @@
         const res = await fetch(`${BASE}/api/v1/auth/send-otp`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone: phoneInput.value })
+          body: JSON.stringify({ phone: phoneInput.value, isSignIn: true })
         });
         if (!res.ok) {
+          if (res.status === 404) {
+            showError('Account not found. Redirecting to Sign Up…');
+            setTimeout(() => {
+              window.location.href = `signup.html?phone=${phoneInput.value}`;
+            }, 1200);
+            return;
+          }
           const d = await res.json();
           showError(d.error || 'Failed to send OTP');
           return;
@@ -186,9 +193,16 @@
         const res = await fetch(`${BASE}/api/v1/auth/verify-otp`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone: phoneInput.value, otp: getOtpCode() })
+          body: JSON.stringify({ phone: phoneInput.value, otp: getOtpCode(), isSignIn: true })
         });
         if (!res.ok) {
+          if (res.status === 404) {
+            showError('Account not found. Redirecting to Sign Up…');
+            setTimeout(() => {
+              window.location.href = `signup.html?phone=${phoneInput.value}`;
+            }, 1200);
+            return;
+          }
           const d = await res.json();
           showOtpError(d.error || 'Incorrect OTP');
           return;

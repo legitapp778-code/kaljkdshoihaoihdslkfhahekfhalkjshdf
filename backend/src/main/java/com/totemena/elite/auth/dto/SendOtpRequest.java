@@ -9,4 +9,6 @@ public class SendOtpRequest {
     @NotBlank(message = "Phone number is required")
     @Pattern(regexp = "^\\d{10}$", message = "Phone number must be 10 digits")
     private String phone;
+
+    private Boolean isSignIn;
 }

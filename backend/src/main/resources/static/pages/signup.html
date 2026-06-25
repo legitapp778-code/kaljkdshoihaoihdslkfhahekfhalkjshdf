@@ -27,17 +27,17 @@
         <div class="auth-fields">
           <div class="input-group">
             <input type="text" id="nameInput" class="auth-input"
-              placeholder="Full Name" autocomplete="name" inputmode="text">
+              placeholder="Full Name (Required)" autocomplete="name" inputmode="text" required>
           </div>
           <div class="input-group">
             <input type="email" id="emailInput" class="auth-input"
-              placeholder="Email Address" autocomplete="email" inputmode="email">
+              placeholder="Email Address (Required)" autocomplete="email" inputmode="email" required>
           </div>
           <div class="input-group">
             <span class="input-prefix">+91</span>
             <input type="tel" id="phoneInput" class="auth-input"
               placeholder="Mobile Number" maxlength="10" autocomplete="off"
-              inputmode="numeric">
+              inputmode="numeric" required>
           </div>
         </div>
 
@@ -94,6 +94,13 @@
 
     let timerInterval;
 
+    // Auto-fill phone from redirect query parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('phone')) {
+      phoneInput.value = urlParams.get('phone').replace(/\D/g, '').slice(0, 10);
+      setTimeout(checkFormValid, 50);
+    }
+
     // Enable GET OTP when all 3 fields valid
     function checkFormValid() {
       const nameOk  = nameInput.value.trim().length >= 2;
@@ -115,7 +122,7 @@
         const res = await fetch(`${BASE}/api/v1/auth/send-otp`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone: phoneInput.value })
+          body: JSON.stringify({ phone: phoneInput.value, isSignIn: false })
         });
         if (!res.ok) {
           const d = await res.json();
@@ -195,7 +202,8 @@
             phone: phoneInput.value,
             otp: getOtpCode(),
             displayName: nameInput.value.trim(),
-            email: emailInput.value.trim()
+            email: emailInput.value.trim(),
+            isSignIn: false
           })
         });
         if (!res.ok) {

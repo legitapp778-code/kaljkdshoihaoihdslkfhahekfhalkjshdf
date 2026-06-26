@@ -10,5 +10,6 @@ public class SendOtpRequest {
     @Pattern(regexp = "^\\d{10}$", message = "Phone number must be 10 digits")
     private String phone;
 
+    @com.fasterxml.jackson.annotation.JsonProperty("isSignIn")
     private Boolean isSignIn;
 }

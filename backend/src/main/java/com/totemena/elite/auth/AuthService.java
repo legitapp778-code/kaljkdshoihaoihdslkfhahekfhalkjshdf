@@ -37,6 +37,12 @@ public class AuthService {
         otpService.generateAndSendOtp(phone);
     }
 
+    public void evictUserCache(UUID userId) {
+        if (userId != null) {
+            redisTemplate.delete("user:cache:" + userId);
+        }
+    }
+
     @Transactional
     public TokenResponse verifyOtp(com.totemena.elite.auth.dto.VerifyOtpRequest request) {
         String phone = request.getPhone();
@@ -56,22 +62,31 @@ public class AuthService {
             return newUser;
         });
 
+        if (!user.isActive()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is disabled");
+        }
+
         // Update name and email if provided
         boolean updated = false;
         if (request.getDisplayName() != null && !request.getDisplayName().isBlank()) {
-            user.setDisplayName(request.getDisplayName().trim());
+            String name = request.getDisplayName().trim();
+            if (name.length() > 50) name = name.substring(0, 50); // hard cap
+            user.setDisplayName(name);
             updated = true;
         }
         if (request.getEmail() != null && !request.getEmail().isBlank()) {
-            user.setEmail(request.getEmail().trim());
+            String email = request.getEmail().trim();
+            if (!email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid email format");
+            }
+            if (email.length() > 100) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email too long");
+            }
+            user.setEmail(email);
             updated = true;
         }
         if (updated) {
             userRepository.save(user);
-        }
-
-        if (!user.isActive()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is disabled");
         }
 
         return generateTokens(user);

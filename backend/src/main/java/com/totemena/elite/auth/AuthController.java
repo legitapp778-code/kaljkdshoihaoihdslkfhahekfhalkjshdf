@@ -12,10 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
-import com.totemena.elite.user.User;
 import com.totemena.elite.user.UserRepository;
-import com.totemena.elite.wallet.Wallet;
-import com.totemena.elite.wallet.WalletRepository;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -24,7 +21,6 @@ public class AuthController {
 
     private final AuthService authService;
     private final UserRepository userRepository;
-    private final WalletRepository walletRepository;
 
     @PostMapping("/send-otp")
     public ResponseEntity<?> sendOtp(@Valid @RequestBody SendOtpRequest request) {
@@ -70,27 +66,5 @@ public class AuthController {
         String authHeader = request.getHeader("Authorization");
         authService.logout(authHeader);
         return ResponseEntity.ok().build();
-    }
-
-    @GetMapping("/dev/demo")
-    @org.springframework.transaction.annotation.Transactional
-    public ResponseEntity<?> setupDemo() {
-        String[] phones = {"9999999991", "9999999992"};
-        for (String p : phones) {
-            User u = userRepository.findByPhone(p).orElse(null);
-            if (u == null) {
-                u = User.builder().phone(p).displayName("Demo User " + p).build();
-                userRepository.save(u);
-            }
-            Wallet w = walletRepository.findByUserId(u.getId()).orElse(null);
-            if (w == null) {
-                w = Wallet.builder().user(u).balancePaise(100000000L).build(); // ₹1,000,000.00
-                walletRepository.save(w);
-            } else {
-                w.setBalancePaise(100000000L);
-                walletRepository.save(w);
-            }
-        }
-        return ResponseEntity.ok(Map.of("message", "Demo accounts 9999999991 and 9999999992 created with ₹1,000,000 balance each. Use OTP '1234' to login."));
     }
 }

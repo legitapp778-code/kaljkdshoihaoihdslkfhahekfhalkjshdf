@@ -33,8 +33,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<?> handleResponseStatus(ResponseStatusException ex) {
+        // Only expose reason for client errors (4xx), never for 5xx
+        String reason = ex.getStatusCode().is4xxClientError()
+            ? ex.getReason()
+            : "An unexpected error occurred.";
         return ResponseEntity.status(ex.getStatusCode()).body(
-            Map.of("error", ex.getReason())
+            Map.of("error", reason != null ? reason : "Request failed")
         );
     }
 
@@ -56,11 +60,19 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(jakarta.validation.ConstraintViolationException.class)
+    public ResponseEntity<?> handleConstraintViolation(jakarta.validation.ConstraintViolationException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+            Map.of("error", "Invalid request parameter")
+        );
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleAllExceptions(Exception ex) {
-        log.error("Unhandled exception", ex);
+        // Log full stack trace internally — NEVER expose to client
+        log.error("Unhandled exception: {}", ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-            Map.of("error", "Internal server error: " + ex.getMessage())
+            Map.of("error", "An unexpected error occurred. Please try again.")
         );
     }
 }

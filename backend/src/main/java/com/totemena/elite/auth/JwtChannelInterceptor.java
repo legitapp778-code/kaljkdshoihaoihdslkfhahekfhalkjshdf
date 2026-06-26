@@ -1,5 +1,8 @@
 package com.totemena.elite.auth;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import java.util.concurrent.TimeUnit;
 import com.totemena.elite.user.User;
 import com.totemena.elite.user.UserRepository;
 import io.github.bucket4j.Bandwidth;
@@ -27,6 +30,8 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
     
     // In-memory rate limiting for WS frames (30 frames / min)
     private final Map<UUID, Bucket> wsRateLimiters = new ConcurrentHashMap<>();
@@ -53,8 +58,10 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
             }
 
             UUID userId = jwtService.extractUserId(token);
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new MessagingException("USER_NOT_FOUND"));
+            User user = getUserFromCacheOrDb(userId);
+            if (user == null) {
+                throw new MessagingException("USER_NOT_FOUND");
+            }
             
             if (!user.isActive()) {
                 throw new MessagingException("ACCOUNT_DISABLED");
@@ -75,6 +82,30 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
         }
 
         return message;
+    }
+
+    private User getUserFromCacheOrDb(UUID userId) {
+        String cacheKey = "user:cache:" + userId;
+        try {
+            String cachedJson = redisTemplate.opsForValue().get(cacheKey);
+            if (cachedJson != null) {
+                return objectMapper.readValue(cachedJson, User.class);
+            }
+        } catch (Exception ignored) {
+            // Fall through to DB on cache error
+        }
+
+        User user = userRepository.findById(userId).orElse(null);
+        if (user != null) {
+            try {
+                redisTemplate.opsForValue().set(
+                    cacheKey,
+                    objectMapper.writeValueAsString(user),
+                    1, TimeUnit.HOURS
+                );
+            } catch (Exception ignored) {}
+        }
+        return user;
     }
 
     private String extractBearerToken(String header) {

@@ -18,11 +18,12 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-//@Configuration
+@Configuration
 @RequiredArgsConstructor
 public class RateLimitConfig extends OncePerRequestFilter {
 
-    private final Map<String, Bucket> otpBuckets = new ConcurrentHashMap<>();
+    private final Map<String, Bucket> sendOtpBuckets = new ConcurrentHashMap<>();
+    private final Map<String, Bucket> verifyOtpBuckets = new ConcurrentHashMap<>();
     private final Map<String, Bucket> refreshBuckets = new ConcurrentHashMap<>();
     private final Map<String, Bucket> defaultBuckets = new ConcurrentHashMap<>();
     private final JwtService jwtService;
@@ -36,8 +37,12 @@ public class RateLimitConfig extends OncePerRequestFilter {
 
         Bucket bucket;
 
-        if (path.equals("/api/v1/auth/send-otp") || path.equals("/api/v1/auth/verify-otp")) {
-            bucket = otpBuckets.computeIfAbsent(ip, k -> Bucket.builder()
+        if (path.equals("/api/v1/auth/send-otp")) {
+            bucket = sendOtpBuckets.computeIfAbsent(ip, k -> Bucket.builder()
+                    .addLimit(Bandwidth.classic(15, Refill.greedy(15, Duration.ofMinutes(10))))
+                    .build());
+        } else if (path.equals("/api/v1/auth/verify-otp")) {
+            bucket = verifyOtpBuckets.computeIfAbsent(ip, k -> Bucket.builder()
                     .addLimit(Bandwidth.classic(5, Refill.greedy(5, Duration.ofMinutes(10))))
                     .build());
         } else if (path.equals("/api/v1/auth/refresh")) {

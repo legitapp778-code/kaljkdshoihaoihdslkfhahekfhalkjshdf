@@ -19,7 +19,8 @@ public class PlaceBetRequest {
     @Max(5)
     private short selectedRow;
 
-    @Min(value = 100, message = "Minimum bet is 1 INR (100 paise)")
+    @Min(value = 100, message = "Minimum bet is ₹1 (100 paise)")
+    @Max(value = 10_000_000L, message = "Maximum bet is ₹1,00,000 (10000000 paise)")
     private long amountPaise;
 
     @NotNull

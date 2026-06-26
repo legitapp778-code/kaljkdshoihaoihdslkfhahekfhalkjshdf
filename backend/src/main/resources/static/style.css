@@ -3089,7 +3089,7 @@ input:checked+.toggle-slider:before {
   display: flex;
   flex-direction: column;
   gap: 22px;
-  margin-bottom: 20px;
+  margin-bottom: 36px;
 }
 
 .instruction-step {
@@ -3271,7 +3271,7 @@ input:checked+.toggle-slider:before {
   }
   .instructions-steps {
     gap: 18px;
-    margin-bottom: 24px;
+    margin-bottom: 36px;
   }
   .home-trust-bar {
     grid-template-columns: 1fr;

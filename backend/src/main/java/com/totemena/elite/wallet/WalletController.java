@@ -11,9 +11,12 @@ import java.text.NumberFormat;
 import java.util.Locale;
 import java.util.Map;
 
+import org.springframework.validation.annotation.Validated;
+
 @RestController
 @RequestMapping("/api/v1/wallet")
 @RequiredArgsConstructor
+@Validated
 public class WalletController {
 
     private final WalletService walletService;
@@ -38,6 +41,8 @@ public class WalletController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String type
     ) {
+        size = Math.min(size, 50);
+        page = Math.max(page, 0);
         return ResponseEntity.ok(walletService.getTransactions(user.getId(), page, size, type));
     }
 }

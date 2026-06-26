@@ -1,5 +1,6 @@
 package com.totemena.elite.auth;
 
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -23,6 +24,13 @@ public class OtpService {
 
     @Value("${app.otp.max-attempts:3}")
     private int maxAttempts;
+
+    @PostConstruct
+    public void validateConfig() {
+        if (fixedOtpValue == null || fixedOtpValue.length() < 4) {
+            throw new IllegalStateException("app.otp.value must be at least 4 digits");
+        }
+    }
 
     public void generateAndSendOtp(String phone) {
         String attemptsKey = "otp:attempts:" + phone;

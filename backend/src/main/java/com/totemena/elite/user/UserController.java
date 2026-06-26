@@ -1,20 +1,30 @@
 package com.totemena.elite.user;
 
+import com.totemena.elite.auth.AuthService;
+import com.totemena.elite.user.dto.UpdateProfileRequest;
+import com.totemena.elite.wallet.Wallet;
+import com.totemena.elite.wallet.WalletRepository;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
-import org.springframework.transaction.annotation.Transactional;
 
 @RestController
 @RequestMapping("/api/v1/user")
 @RequiredArgsConstructor
 @Transactional
+@Validated
 public class UserController {
 
     private final UserRepository userRepository;
+    private final WalletRepository walletRepository;
+    private final AuthService authService;
 
     @GetMapping("/me")
     public ResponseEntity<?> getMe(@AuthenticationPrincipal User authUser) {
@@ -30,18 +40,45 @@ public class UserController {
     }
 
     @PutMapping("/me")
-    public ResponseEntity<?> updateMe(@AuthenticationPrincipal User user, @RequestBody Map<String, String> request) {
-        String newName = request.get("displayName");
-        if (newName != null && !newName.isBlank()) {
-            user.setDisplayName(newName);
+    public ResponseEntity<?> updateMe(
+            @AuthenticationPrincipal User user,
+            @Valid @RequestBody UpdateProfileRequest request) {
+        if (request.getDisplayName() != null && !request.getDisplayName().isBlank()) {
+            user.setDisplayName(request.getDisplayName().trim());
             userRepository.save(user);
         }
         return ResponseEntity.ok(Map.of("message", "Profile updated"));
     }
 
     @DeleteMapping("/me")
-    public ResponseEntity<?> deleteMe(@AuthenticationPrincipal User user) {
-        userRepository.delete(user);
-        return ResponseEntity.ok(Map.of("message", "Account deleted successfully"));
+    public ResponseEntity<?> deleteMe(
+            @AuthenticationPrincipal User user,
+            @RequestBody(required = false) Map<String, String> body) {
+
+        // Require explicit confirmation string
+        String confirm = body != null ? body.get("confirm") : null;
+        if (!"DELETE_MY_ACCOUNT".equals(confirm)) {
+            return ResponseEntity.badRequest().body(
+                Map.of("error", "Send confirm: 'DELETE_MY_ACCOUNT' to delete your account")
+            );
+        }
+
+        // Block deletion if user has pending bets or positive balance
+        Wallet wallet = walletRepository.findByUserId(user.getId()).orElse(null);
+        if (wallet != null && wallet.getBalancePaise() > 0) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                Map.of("error", "Cannot delete account with remaining balance. " +
+                                "Please withdraw all funds first.")
+            );
+        }
+
+        // Soft delete — never hard delete financial records
+        user.setActive(false);
+        user.setPhone("DELETED_" + user.getId().toString().substring(0, 8));
+        userRepository.save(user);
+
+        authService.evictUserCache(user.getId());
+
+        return ResponseEntity.ok(Map.of("message", "Account scheduled for deletion"));
     }
 }

@@ -13,6 +13,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Pattern;
+import org.springframework.validation.annotation.Validated;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -22,6 +24,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/v1/game")
 @RequiredArgsConstructor
+@Validated
 public class GameController {
 
     private final GameService gameService;
@@ -40,7 +43,8 @@ public class GameController {
     @DeleteMapping("/bet/{bird}")
     public ResponseEntity<Map<String, Object>> cancelBet(
             @AuthenticationPrincipal User user,
-            @PathVariable String bird) {
+            @PathVariable @Pattern(regexp = "^(tota|mena)$",
+                message = "Bird must be 'tota' or 'mena'") String bird) {
         long newBalance = gameService.cancelBet(user, bird);
         return ResponseEntity.ok(Map.of(
                 "status", "CANCELLED",
@@ -88,6 +92,8 @@ public class GameController {
             @AuthenticationPrincipal User user,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
+        size = Math.min(size, 50); // cap at 50 — never let user dump entire table
+        page = Math.max(page, 0);  // no negative pages
         Page<Bet> bets = betRepository.findUserHistory(user.getId(), PageRequest.of(page, size));
         Page<Map<String, Object>> dtoPage = bets.map(b -> {
             Map<String, Object> map = new java.util.HashMap<>();

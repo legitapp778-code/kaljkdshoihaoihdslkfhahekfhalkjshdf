@@ -293,12 +293,14 @@ async function fetchUserStats() {
       });
 
       // home.html: total winnings quick stat
-      document.querySelectorAll('.qs-item').forEach(item => {
-        const label = item.querySelector('.qs-label')?.textContent.trim();
-        const valElem = item.querySelector('.qs-val');
+      document.querySelectorAll('.qs-item, .home-summary-card').forEach(item => {
+        const labelElem = item.querySelector('.qs-label, .summary-label');
+        if (!labelElem) return;
+        const label = labelElem.textContent.trim().toUpperCase();
+        const valElem = item.querySelector('.qs-val, .summary-value');
         if (!valElem) return;
         if (label === 'TOTAL WINNINGS')
-          valElem.textContent = '₹' + Number(data.totalWinningsPaise / 100)
+          valElem.textContent = '₹' + Number((data.totalWinningsPaise || 0) / 100)
             .toLocaleString('en-IN', { maximumFractionDigits: 0 });
         if (label === 'CURRENT TIER')
           valElem.textContent = data.vipTier || 'STANDARD';
@@ -1158,7 +1160,7 @@ function prependRecentResult(roundId, winTota, winMena) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  init();
+  if (typeof init === 'function') init();
 
   // Fire off shared data fetching in parallel without awaiting
   loadSharedPageData();

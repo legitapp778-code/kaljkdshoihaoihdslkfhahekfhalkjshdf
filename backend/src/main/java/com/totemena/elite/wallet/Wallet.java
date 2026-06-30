@@ -24,6 +24,14 @@ public class Wallet {
     @Builder.Default
     private long balancePaise = 0L;
 
+    @Column(name = "deposit_balance_paise", nullable = false)
+    @Builder.Default
+    private long depositBalancePaise = 0L;
+
+    @Column(name = "winning_balance_paise", nullable = false)
+    @Builder.Default
+    private long winningBalancePaise = 0L;
+
     @Column(name = "updated_at", nullable = false)
     @Builder.Default
     private Instant updatedAt = Instant.now();

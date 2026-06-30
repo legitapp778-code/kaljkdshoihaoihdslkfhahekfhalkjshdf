@@ -17,4 +17,6 @@ public interface TransactionRepository extends JpaRepository<WalletTransaction, 
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.data.jpa.repository.Query("UPDATE WalletTransaction t SET t.referenceId = :betId WHERE t.id = :txId")
     void updateReferenceId(@org.springframework.data.repository.query.Param("txId") UUID txId, @org.springframework.data.repository.query.Param("betId") UUID betId);
+
+    java.util.List<WalletTransaction> findByReferenceId(UUID referenceId);
 }

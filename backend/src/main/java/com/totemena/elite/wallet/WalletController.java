@@ -30,6 +30,8 @@ public class WalletController {
         
         return ResponseEntity.ok(Map.of(
             "balancePaise", wallet.getBalancePaise(),
+            "depositBalancePaise", wallet.getDepositBalancePaise(),
+            "winningBalancePaise", wallet.getWinningBalancePaise(),
             "displayBalance", displayBalance
         ));
     }

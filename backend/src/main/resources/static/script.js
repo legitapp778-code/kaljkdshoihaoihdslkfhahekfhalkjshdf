@@ -192,6 +192,16 @@ async function loadSharedPageData() {
       wcBal.textContent = '₹' + Number(wallet.balancePaise / 100)
         .toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
+    const wcDep = document.querySelector('.wc-dep');
+    if (wcDep) {
+      wcDep.textContent = '₹' + Number((wallet.depositBalancePaise || 0) / 100)
+        .toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    const wcWin = document.querySelector('.wc-win');
+    if (wcWin) {
+      wcWin.textContent = '₹' + Number((wallet.winningBalancePaise || 0) / 100)
+        .toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
     // Update STATE.balancePaise if STATE exists (game page)
     if (typeof STATE !== 'undefined') STATE.balancePaise = wallet.balancePaise;
   }

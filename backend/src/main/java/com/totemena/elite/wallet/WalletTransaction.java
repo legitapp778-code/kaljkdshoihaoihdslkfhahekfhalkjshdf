@@ -26,6 +26,14 @@ public class WalletTransaction {
     @Column(name = "amount_paise", nullable = false)
     private long amountPaise;
 
+    @Column(name = "deposit_paise", nullable = false)
+    @Builder.Default
+    private long depositPaise = 0L;
+
+    @Column(name = "winning_paise", nullable = false)
+    @Builder.Default
+    private long winningPaise = 0L;
+
     @Column(name = "balance_after_paise", nullable = false)
     private long balanceAfterPaise;
 

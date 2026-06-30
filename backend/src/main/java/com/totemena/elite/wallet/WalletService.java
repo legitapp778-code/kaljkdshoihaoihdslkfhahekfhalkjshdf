@@ -52,12 +52,20 @@ public class WalletService {
             throw new IllegalArgumentException("Amount must be positive");
         }
 
-        int updated = walletRepository.deductBalance(userId, amountPaise);
-        if (updated == 0) {
+        Wallet wallet = walletRepository.findByUserIdForUpdate(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Wallet not found"));
+
+        if (wallet.getBalancePaise() < amountPaise) {
             throw new InsufficientBalanceException("Insufficient balance");
         }
 
-        long newBalance = walletRepository.getBalanceAfterDeduct(userId);
+        long depDeduct = Math.min(wallet.getDepositBalancePaise(), amountPaise);
+        long winDeduct = amountPaise - depDeduct;
+
+        wallet.setDepositBalancePaise(wallet.getDepositBalancePaise() - depDeduct);
+        wallet.setWinningBalancePaise(wallet.getWinningBalancePaise() - winDeduct);
+        wallet.setBalancePaise(wallet.getDepositBalancePaise() + wallet.getWinningBalancePaise());
+        walletRepository.save(wallet);
 
         User user = userRepository.getReferenceById(userId);
         
@@ -65,7 +73,9 @@ public class WalletService {
                 .user(user)
                 .type(type)
                 .amountPaise(-amountPaise)
-                .balanceAfterPaise(newBalance)
+                .depositPaise(-depDeduct)
+                .winningPaise(-winDeduct)
+                .balanceAfterPaise(wallet.getBalancePaise())
                 .referenceId(referenceId)
                 .build();
                 
@@ -78,12 +88,39 @@ public class WalletService {
             throw new IllegalArgumentException("Amount must be positive");
         }
 
-        int updated = walletRepository.addBalance(userId, amountPaise);
-        if (updated == 0) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Wallet not found");
+        Wallet wallet = walletRepository.findByUserIdForUpdate(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Wallet not found"));
+
+        long depAdd = 0;
+        long winAdd = 0;
+
+        if ("BET_WON".equals(type)) {
+            winAdd = amountPaise;
+        } else if ("BET_REFUND".equals(type)) {
+            long netWinDeducted = 0;
+            if (referenceId != null) {
+                java.util.List<WalletTransaction> priorTxs = transactionRepository.findByReferenceId(referenceId);
+                for (WalletTransaction prior : priorTxs) {
+                    if (prior.getWinningPaise() < 0) {
+                        netWinDeducted += Math.abs(prior.getWinningPaise());
+                    } else if (prior.getWinningPaise() > 0) {
+                        netWinDeducted -= prior.getWinningPaise();
+                    }
+                }
+            }
+            if (netWinDeducted < 0) netWinDeducted = 0;
+
+            winAdd = Math.min(amountPaise, netWinDeducted);
+            depAdd = amountPaise - winAdd;
+        } else {
+            // DEPOSIT or other additions go to deposit balance
+            depAdd = amountPaise;
         }
 
-        long newBalance = walletRepository.getBalanceAfterAdd(userId);
+        wallet.setDepositBalancePaise(wallet.getDepositBalancePaise() + depAdd);
+        wallet.setWinningBalancePaise(wallet.getWinningBalancePaise() + winAdd);
+        wallet.setBalancePaise(wallet.getDepositBalancePaise() + wallet.getWinningBalancePaise());
+        walletRepository.save(wallet);
 
         User user = userRepository.getReferenceById(userId);
 
@@ -91,7 +128,9 @@ public class WalletService {
                 .user(user)
                 .type(type)
                 .amountPaise(amountPaise)
-                .balanceAfterPaise(newBalance)
+                .depositPaise(depAdd)
+                .winningPaise(winAdd)
+                .balanceAfterPaise(wallet.getBalancePaise())
                 .referenceId(referenceId)
                 .build();
 

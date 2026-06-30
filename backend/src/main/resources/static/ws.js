@@ -60,7 +60,7 @@ window.stompClient.reconnectDelay = 5000;
 async function refreshAccessToken() {
     const refreshToken = localStorage.getItem('refreshToken');
     if (!refreshToken) {
-        window.location.href = 'pages/auth.html';
+        window.location.href = '/pages/signin.html';
         return;
     }
     try {
@@ -76,7 +76,7 @@ async function refreshAccessToken() {
         } else {
             localStorage.removeItem('accessToken');
             localStorage.removeItem('refreshToken');
-            window.location.href = 'pages/signin.html';
+            window.location.href = '/pages/signin.html';
         }
     } catch (e) {
         console.error("Failed to refresh token", e);

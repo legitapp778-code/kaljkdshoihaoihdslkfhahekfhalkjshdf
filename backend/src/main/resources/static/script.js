@@ -100,8 +100,8 @@ function init() {
   if (token) {
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
-      const userId = payload.sub.substring(0, 8).toUpperCase();
-      const phone = payload.phone;
+      const userId = (payload.sub || 'N/A').substring(0, 8).toUpperCase();
+      const phone = payload.phone || '';
 
       const userNameElems = document.querySelectorAll('.user-name');
       userNameElems.forEach(el => {
@@ -117,7 +117,7 @@ function init() {
   // Handled by window.syncStateOnReconnect in ws.js
 
   // WhatsApp Deposit/Withdrawal Integration
-  const whatsappUrl = "#";
+  const whatsappUrl = "https://wa.me";
   document.querySelectorAll('.add-funds-btn, .wc-btn--deposit, .wc-btn--withdraw').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
@@ -151,22 +151,22 @@ async function loadSharedPageData() {
     const user = await userRes.json();
     // Replace ALL elements with class "user-name" across every page
     document.querySelectorAll('.user-name').forEach(el => {
-      const userId = user.id.substring(0, 8).toUpperCase();
+      const userId = (user.id || 'N/A').substring(0, 8).toUpperCase();
       el.style.lineHeight = '1.2';
       el.style.textAlign = 'left';
-      el.innerHTML = `${user.phone}<br><span style="font-size:10px;opacity:0.7">ID: ${userId}</span>`;
+      el.innerHTML = `${user.phone || ''}<br><span style="font-size:10px;opacity:0.7">ID: ${userId}</span>`;
     });
     // Replace profile page avatar initials: element with class "prof-avatar"
     const profAvatar = document.querySelector('.prof-avatar');
     if (profAvatar) {
-      profAvatar.textContent = user.phone.slice(-4); // last 4 digits as avatar
+      profAvatar.textContent = (user.phone || '0000').slice(-4); // last 4 digits as avatar
     }
     // Replace profile page name: element with class "prof-name"
     const profName = document.querySelector('.prof-name');
-    if (profName) profName.textContent = user.displayName || user.phone;
+    if (profName) profName.textContent = user.displayName || user.phone || 'User';
     // Replace profile page ID: element with class "prof-id"
     const profId = document.querySelector('.prof-id');
-    if (profId) profId.textContent = 'ID: ' + user.id.substring(0, 8).toUpperCase();
+    if (profId) profId.textContent = 'ID: ' + (user.id || 'N/A').substring(0, 8).toUpperCase();
     // Replace profile page phone field
     const phoneInput = document.querySelector('input[type="text"]');
     if (phoneInput && window.location.pathname.includes('profile')) {
@@ -527,7 +527,12 @@ function setupPanel(bird, chips, input, btn) {
         input.value = STATE.panelBetAmounts[bird] || '';
         return showToast('Cancel your current bet first to change the amount!');
       }
-      STATE.panelBetAmounts[bird] = +input.value || 0;
+      // Strictly allow only numeric digits (0-9). Strip out letters, decimals, signs, or symbols.
+      const sanitized = input.value.replace(/[^0-9]/g, '');
+      if (input.value !== sanitized) {
+        input.value = sanitized;
+      }
+      STATE.panelBetAmounts[bird] = sanitized ? parseInt(sanitized, 10) : 0;
       chips.forEach(c => c.classList.remove('chip--selected'));
       renderBoard();
       updatePossibleWin();
@@ -568,7 +573,9 @@ async function placeBet(bird) {
   if (!row) return showToast(`Select a card in ${bird.toUpperCase()} column first!`);
 
   const amt = STATE.panelBetAmounts[bird];
-  if (amt <= 0) return showToast('Select or enter a bet amount!');
+  if (!amt || isNaN(amt) || !Number.isInteger(Number(amt)) || amt <= 0) {
+    return showToast('❌ Invalid amount! Only whole numbers are allowed (no letters or special symbols).');
+  }
 
   const diffPaise = (amt - STATE.bets[bird].amount) * 100;
   if (diffPaise > STATE.balancePaise) return showToast('Insufficient balance!');
@@ -666,6 +673,7 @@ async function cancelBet(bird) {
 }
 
 function renderBoard() {
+  if (!DOM.bettingCells || !DOM.bettingCells.tota || !DOM.bettingCells.mena) return;
   ['tota', 'mena'].forEach(bird => {
     DOM.bettingCells[bird].forEach(cell => {
       const row = +cell.dataset.row;
@@ -811,6 +819,7 @@ window.syncStateOnReconnect = async function () {
 };
 
 function renderTimer() {
+  if (!DOM.timerDisplay) return;
   if (STATE.phase === 'BETTING') {
     DOM.timerDisplay.textContent = `${STATE.roundTimer}s`;
     DOM.timerDisplay.style.color = '';
@@ -831,6 +840,7 @@ function startSpinPhase() {
 
   ['tota', 'mena'].forEach(bird => {
     const track = document.getElementById(`reel-${bird}`);
+    if (!track || !track.parentElement) return;
     while (track.children.length > 5) {
       track.removeChild(track.lastChild);
     }
@@ -847,6 +857,7 @@ function startSpinPhase() {
 
   ['tota', 'mena'].forEach(bird => {
     const track = document.getElementById(`reel-${bird}`);
+    if (!track || !track.parentElement) return;
     const colHeight = track.parentElement.clientHeight;
     const distance = (colHeight + 8) * 3;
 
@@ -867,6 +878,13 @@ function stopSpinPhaseAndReveal() {
 
   ['tota', 'mena'].forEach((bird, index) => {
     const track = document.getElementById(`reel-${bird}`);
+    if (!track || !track.parentElement) {
+      if (index === 1) {
+        fetchBalance();
+        prependRecentResult(STATE.currentRoundId, STATE.winningRows.tota, STATE.winningRows.mena);
+      }
+      return;
+    }
     const colHeight = track.parentElement.clientHeight;
     const distance = (colHeight + 8) * 2;
 
@@ -930,37 +948,12 @@ function stopSpinPhaseAndReveal() {
 
         updateBetButtonStates();
 
-        // Show overlay if user placed any bet
+        // Show sleek toast notification instead of large popup modal
         if (anyBet) {
-          const overlay = document.getElementById('winOverlay');
-          const amtDisplay = document.getElementById('winAmtDisplay');
-          const rowsDisplay = document.getElementById('winRowsDisplay');
-
-          if (overlay && amtDisplay) {
-            if (totalWonPaise > 0) {
-              // WIN
-              overlay.querySelector('.win-overlay__title').textContent = '🎉 YOU WON!';
-              amtDisplay.textContent = `+₹${fmtCur(totalWonPaise / 100)}`;
-              amtDisplay.style.color = '#4CAF50';
-              const crown = overlay.querySelector('.win-overlay__crown');
-              if (crown) crown.textContent = '👑';
-              showToast(`🎉 You won ₹${fmtCur(totalWonPaise / 100)}`);
-            } else {
-              // LOSS
-              overlay.querySelector('.win-overlay__title').textContent = 'BETTER LUCK NEXT TIME';
-              amtDisplay.textContent = `-₹${fmtCur((STATE.bets.tota.amount + STATE.bets.mena.amount))}`;
-              amtDisplay.style.color = '#dc2626';
-              const crown = overlay.querySelector('.win-overlay__crown');
-              if (crown) crown.textContent = '😔';
-              showToast(`😔 You lost ₹${fmtCur(STATE.bets.tota.amount + STATE.bets.mena.amount)}`);
-            }
-            if (rowsDisplay) {
-              rowsDisplay.innerHTML = winDetails.map(d => `<div style="margin-bottom:4px;">${d}</div>`).join('');
-            }
-            overlay.classList.add('is-visible');
-            overlay.setAttribute('aria-hidden', 'false');
-            // Auto-close after 5 seconds if user doesn't click
-            setTimeout(() => closeWin(), 5000);
+          if (totalWonPaise > 0) {
+            showToast(`🎉 You won ₹${fmtCur(totalWonPaise / 100)}!`);
+          } else {
+            showToast(`😔 You lost ₹${fmtCur(STATE.bets.tota.amount + STATE.bets.mena.amount)}`);
           }
         }
 
@@ -1015,8 +1008,9 @@ function resetRound() {
   
   closeWin();
 
-  DOM.allCells.forEach(cell => {
-    const wasWinner = cell.classList.contains('cell--winner');
+  if (DOM.allCells) {
+    DOM.allCells.forEach(cell => {
+      const wasWinner = cell.classList.contains('cell--winner');
 
     cell.removeAttribute('data-active');
     cell.removeAttribute('data-win');
@@ -1059,6 +1053,7 @@ function resetRound() {
       birdImg.style.transform = 'translate(-50%, -50%) scale(0.4)';
     }
   });
+  }
 
   renderBoard();
   updatePossibleWin();
@@ -1101,6 +1096,38 @@ function closeWin() {
   if (DOM.winOverlay) {
     DOM.winOverlay.classList.remove('is-visible');
     DOM.winOverlay.setAttribute('aria-hidden', 'true');
+  }
+}
+
+async function fetchBalance() {
+  const token = localStorage.getItem('accessToken');
+  if (!token) return;
+  try {
+    const res = await fetch('/api/v1/wallet', { headers: { 'Authorization': `Bearer ${token}` } });
+    if (res.ok) {
+      const data = await res.json();
+      const prev = STATE.balancePaise;
+      STATE.balancePaise = data.balancePaise;
+      updateBalanceDisplay(data.balancePaise > prev ? 'up' : data.balancePaise < prev ? 'down' : null);
+
+      const wcBal = document.querySelector('.wc-bal');
+      if (wcBal) {
+        wcBal.textContent = '₹' + Number(data.balancePaise / 100)
+          .toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+      const wcDep = document.querySelector('.wc-dep');
+      if (wcDep) {
+        wcDep.textContent = '₹' + Number((data.depositBalancePaise || 0) / 100)
+          .toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+      const wcWin = document.querySelector('.wc-win');
+      if (wcWin) {
+        wcWin.textContent = '₹' + Number((data.winningBalancePaise || 0) / 100)
+          .toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+    }
+  } catch (e) {
+    console.error('Failed to fetch balance', e);
   }
 }
 
@@ -1257,7 +1284,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       html += `<div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 14px;">No recent results found.</div>`;
     }
     data.forEach(r => {
-      const shortId = '#' + r.roundId.substring(0, 8).toUpperCase();
+      const shortId = '#' + (r.roundId ? r.roundId.substring(0, 8).toUpperCase() : 'N/A');
       const isSubdir = window.location.pathname.includes('/pages/');
       const prefix = isSubdir ? '../' : '';
 
@@ -1289,7 +1316,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     data.forEach(b => {
-      const shortId = '#' + b.roundId.substring(0, 8).toUpperCase();
+      const shortId = '#' + (b.roundId ? b.roundId.substring(0, 8).toUpperCase() : 'N/A');
       const dateObj = new Date(b.createdAt);
       const timeStr = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const birdClass = b.bird === 'tota' ? 'ht-val--green' : 'ht-val--brown';
@@ -1394,6 +1421,7 @@ function renderHistoryTable(data) {
   }
 
   filteredData.forEach(r => {
+    const shortId = '#' + (r.roundId ? r.roundId.substring(0, 8).toUpperCase() : 'N/A');
     const dateObj = new Date(r.finishedAt);
     const dateStr = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
     const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -1510,7 +1538,7 @@ async function loadSupportTickets() {
           <div class="ticket-row">
             <div>
               <div style="font-family: var(--font-sora); font-size: 12px; font-weight: 700;">${t.subject}</div>
-              <div style="font-size: 10px; color: var(--text-light);">Ticket #${t.id.substring(0, 6).toUpperCase()} • ${date}</div>
+              <div style="font-size: 10px; color: var(--text-light);">Ticket #${(t.id ? t.id.substring(0, 6).toUpperCase() : 'N/A')} • ${date}</div>
             </div>
             <div class="ticket-status ${statusClass}">${t.status}</div>
           </div>

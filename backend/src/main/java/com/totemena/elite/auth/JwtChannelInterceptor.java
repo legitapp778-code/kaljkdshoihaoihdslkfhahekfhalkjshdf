@@ -5,9 +5,6 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import java.util.concurrent.TimeUnit;
 import com.totemena.elite.user.User;
 import com.totemena.elite.user.UserRepository;
-import io.github.bucket4j.Bandwidth;
-import io.github.bucket4j.Bucket;
-import io.github.bucket4j.Refill;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -19,10 +16,7 @@ import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Component;
 
-import java.time.Duration;
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @RequiredArgsConstructor
@@ -32,9 +26,6 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
     private final UserRepository userRepository;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
-    
-    // In-memory rate limiting for WS frames (30 frames / min)
-    private final Map<UUID, Bucket> wsRateLimiters = new ConcurrentHashMap<>();
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -116,14 +107,20 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
     }
 
     private void enforceWsRateLimit(UUID userId) {
-        Bucket bucket = wsRateLimiters.computeIfAbsent(userId, k -> 
-            Bucket.builder()
-                  .addLimit(Bandwidth.classic(30, Refill.greedy(30, Duration.ofMinutes(1))))
-                  .build()
-        );
-        
-        if (!bucket.tryConsume(1)) {
-            throw new MessagingException("RATE_LIMIT_EXCEEDED");
+        long currentWindow = System.currentTimeMillis() / 60000L;
+        String redisKey = "rate_limit:ws:" + userId + ":" + currentWindow;
+        try {
+            Long count = redisTemplate.opsForValue().increment(redisKey);
+            if (count != null && count == 1L) {
+                redisTemplate.expire(redisKey, 70, TimeUnit.SECONDS);
+            }
+            if (count != null && count > 30) {
+                throw new MessagingException("RATE_LIMIT_EXCEEDED");
+            }
+        } catch (MessagingException me) {
+            throw me;
+        } catch (Exception ignored) {
+            // Allow request if Redis connection fails temporarily
         }
     }
 }

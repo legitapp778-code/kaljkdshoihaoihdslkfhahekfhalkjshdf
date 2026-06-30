@@ -3279,3 +3279,39 @@ input:checked+.toggle-slider:before {
     padding: 16px;
   }
 }
+
+/* Wallet Card Responsive Styles */
+.wallet-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(201,160,76,0.2);
+}
+
+.wallet-actions-flex {
+  display: flex;
+  gap: 16px;
+  margin-top: 26px;
+}
+
+@media (max-width: 640px) {
+  .wallet-card {
+    padding: 20px 16px !important;
+  }
+  .wallet-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 18px;
+    padding-top: 18px;
+  }
+  .wallet-actions-flex {
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 20px;
+  }
+  .wc-bal {
+    font-size: 34px !important;
+  }
+}

@@ -8,6 +8,10 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
 
+import org.springframework.dao.DataAccessException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -67,10 +71,26 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler({DataAccessException.class, SQLException.class})
+    public ResponseEntity<?> handleDatabaseExceptions(Exception ex) {
+        log.error("Database error occurred: [{}]", ex.getClass().getSimpleName());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+            Map.of("error", "An internal error occurred. Please try again later.")
+        );
+    }
+
+    @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
+    public ResponseEntity<?> handleInvalidFormatException(Exception ex) {
+        log.warn("Invalid input format received: [{}]", ex.getClass().getSimpleName());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+            Map.of("error", "Invalid input format. When placing bets, only numbers are allowed (no letters or special symbols).")
+        );
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleAllExceptions(Exception ex) {
-        // Log full stack trace internally — NEVER expose to client
-        log.error("Unhandled exception: {}", ex.getMessage(), ex);
+        // Log exception class internally — NEVER expose confidential user data or stack trace to client
+        log.error("Unhandled exception: [{}]", ex.getClass().getSimpleName());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
             Map.of("error", "An unexpected error occurred. Please try again.")
         );

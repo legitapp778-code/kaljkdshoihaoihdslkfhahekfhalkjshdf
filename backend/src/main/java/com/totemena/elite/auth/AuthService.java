@@ -7,6 +7,7 @@ import com.totemena.elite.user.UserRepository;
 import com.totemena.elite.wallet.Wallet;
 import com.totemena.elite.wallet.WalletRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,7 @@ import java.util.Base64;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -30,6 +32,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final WalletRepository walletRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final LoginHistoryRepository loginHistoryRepository;
     private final StringRedisTemplate redisTemplate;
     private final JwtConfig jwtConfig;
 
@@ -45,6 +48,11 @@ public class AuthService {
 
     @Transactional
     public TokenResponse verifyOtp(com.totemena.elite.auth.dto.VerifyOtpRequest request) {
+        return verifyOtp(request, null, null);
+    }
+
+    @Transactional
+    public TokenResponse verifyOtp(com.totemena.elite.auth.dto.VerifyOtpRequest request, String ipAddress, String userAgent) {
         String phone = request.getPhone();
         String otp = request.getOtp();
 
@@ -89,7 +97,55 @@ public class AuthService {
             userRepository.save(user);
         }
 
+        try {
+            LoginHistory history = LoginHistory.builder()
+                    .user(user)
+                    .deviceName(parseDeviceName(userAgent))
+                    .ipAddress(ipAddress != null && ipAddress.length() > 64 ? ipAddress.substring(0, 64) : ipAddress)
+                    .userAgent(userAgent != null && userAgent.length() > 500 ? userAgent.substring(0, 500) : userAgent)
+                    .loggedInAt(Instant.now())
+                    .build();
+            loginHistoryRepository.save(history);
+        } catch (Exception e) {
+            log.warn("Failed to record login history: {}", e.getMessage());
+        }
+
         return generateTokens(user);
+    }
+
+    private String parseDeviceName(String userAgent) {
+        if (userAgent == null || userAgent.isBlank()) {
+            return "Unknown Device";
+        }
+        if (userAgent.contains("iPhone")) {
+            return "Apple iPhone";
+        } else if (userAgent.contains("iPad")) {
+            return "Apple iPad";
+        } else if (userAgent.contains("Android")) {
+            try {
+                int androidIdx = userAgent.indexOf("Android");
+                int semiIdx = userAgent.indexOf(";", androidIdx);
+                if (semiIdx != -1) {
+                    int nextSemiOrParen = userAgent.indexOf("Build/", semiIdx);
+                    if (nextSemiOrParen == -1) nextSemiOrParen = userAgent.indexOf(")", semiIdx);
+                    if (nextSemiOrParen != -1 && nextSemiOrParen > semiIdx + 1) {
+                        String model = userAgent.substring(semiIdx + 1, nextSemiOrParen).trim();
+                        if (model.endsWith(";")) model = model.substring(0, model.length() - 1).trim();
+                        if (!model.isEmpty() && !model.startsWith("wv") && model.length() < 50) {
+                            return model;
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+            return "Android Device";
+        } else if (userAgent.contains("Windows NT")) {
+            return "Windows PC";
+        } else if (userAgent.contains("Macintosh") || userAgent.contains("Mac OS X")) {
+            return "Apple Mac";
+        } else if (userAgent.contains("Linux")) {
+            return "Linux PC";
+        }
+        return "Web Browser";
     }
 
     @Transactional

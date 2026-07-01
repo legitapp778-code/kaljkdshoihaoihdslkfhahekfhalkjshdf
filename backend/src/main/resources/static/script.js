@@ -20,6 +20,35 @@ let betDebounceTimer = { tota: null, mena: null };
 
 let currentHistoryFilter = 'all';
 
+window.showPopupAlert = function (msg, title = "Action Blocked", icon = "⚠️", onOk = null) {
+  let overlay = document.getElementById('customAlertOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'customAlertOverlay';
+    overlay.className = 'custom-alert-overlay';
+    overlay.innerHTML = `
+      <div class="custom-alert-box">
+        <div class="custom-alert-icon" id="customAlertIcon">⚠️</div>
+        <div class="custom-alert-title" id="customAlertTitle">Action Blocked</div>
+        <div class="custom-alert-msg" id="customAlertMsg"></div>
+        <button class="custom-alert-btn" id="customAlertOkBtn">OKAY</button>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  }
+  const okBtn = document.getElementById('customAlertOkBtn');
+  const newOkBtn = okBtn.cloneNode(true);
+  okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+  newOkBtn.addEventListener('click', () => {
+    overlay.style.display = 'none';
+    if (typeof onOk === 'function') onOk();
+  });
+  document.getElementById('customAlertIcon').textContent = icon;
+  document.getElementById('customAlertTitle').textContent = title;
+  document.getElementById('customAlertMsg').textContent = msg;
+  overlay.style.display = 'flex';
+};
+
 /* ══════════════════════════════════════════════════════════
    DOM REFERENCES
    ══════════════════════════════════════════════════════════ */
@@ -254,7 +283,7 @@ async function fetchGlobalStats() {
   };
 
   if (cached) {
-    try { renderData(JSON.parse(cached)); } catch(e){}
+    try { renderData(JSON.parse(cached)); } catch (e) { }
   }
 
   try {
@@ -283,64 +312,64 @@ async function fetchUserStats() {
   const cached = sessionStorage.getItem(cacheKey);
 
   const renderData = (data) => {
-      document.querySelectorAll('.sd-card').forEach(card => {
-        const label = card.querySelector('.sd-label')?.textContent.trim();
-        const valElem = card.querySelector('.sd-val');
-        if (!valElem) return;
-        if (label === 'GAMES PLAYED')
-          valElem.textContent = Number(data.gamesPlayed).toLocaleString('en-IN');
-        if (label === 'WIN RATE')
-          valElem.textContent = Number(data.winRate).toFixed(1) + '%';
-        if (label === 'BEST MULT')
-          valElem.textContent = Number(data.bestMultiplier).toFixed(1) + 'x';
-        // transactions.html stats
-        if (label === 'DEPOSITED (MONTH)')
-          valElem.textContent = '₹' + Number(data.depositedThisMonthPaise / 100)
-            .toLocaleString('en-IN', { maximumFractionDigits: 0 });
-        if (label === 'WITHDRAWN (MONTH)')
-          valElem.textContent = '₹' + Number(data.withdrawnThisMonthPaise / 100)
-            .toLocaleString('en-IN', { maximumFractionDigits: 0 });
-      });
+    document.querySelectorAll('.sd-card').forEach(card => {
+      const label = card.querySelector('.sd-label')?.textContent.trim();
+      const valElem = card.querySelector('.sd-val');
+      if (!valElem) return;
+      if (label === 'GAMES PLAYED')
+        valElem.textContent = Number(data.gamesPlayed).toLocaleString('en-IN');
+      if (label === 'WIN RATE')
+        valElem.textContent = Number(data.winRate).toFixed(1) + '%';
+      if (label === 'BEST MULT')
+        valElem.textContent = Number(data.bestMultiplier).toFixed(1) + 'x';
+      // transactions.html stats
+      if (label === 'DEPOSITED (MONTH)')
+        valElem.textContent = '₹' + Number(data.depositedThisMonthPaise / 100)
+          .toLocaleString('en-IN', { maximumFractionDigits: 0 });
+      if (label === 'WITHDRAWN (MONTH)')
+        valElem.textContent = '₹' + Number(data.withdrawnThisMonthPaise / 100)
+          .toLocaleString('en-IN', { maximumFractionDigits: 0 });
+    });
 
-      // home.html: total winnings quick stat
-      document.querySelectorAll('.qs-item, .home-summary-card').forEach(item => {
-        const labelElem = item.querySelector('.qs-label, .summary-label');
-        if (!labelElem) return;
-        const label = labelElem.textContent.trim().toUpperCase();
-        const valElem = item.querySelector('.qs-val, .summary-value');
-        if (!valElem) return;
-        if (label === 'TOTAL WINNINGS')
-          valElem.textContent = '₹' + Number((data.totalWinningsPaise || 0) / 100)
-            .toLocaleString('en-IN', { maximumFractionDigits: 0 });
-        if (label === 'CURRENT TIER')
-          valElem.textContent = data.vipTier || 'STANDARD';
-      });
-      // profile.html: user specific data
-      const upName = document.querySelector('.up-name');
-      if (upName) upName.textContent = data.gamesPlayed + ' Games Played';
-      const profPhone = document.getElementById('prof-phone');
-      if (profPhone) profPhone.value = data.phone || '';
+    // home.html: total winnings quick stat
+    document.querySelectorAll('.qs-item, .home-summary-card').forEach(item => {
+      const labelElem = item.querySelector('.qs-label, .summary-label');
+      if (!labelElem) return;
+      const label = labelElem.textContent.trim().toUpperCase();
+      const valElem = item.querySelector('.qs-val, .summary-value');
+      if (!valElem) return;
+      if (label === 'TOTAL WINNINGS')
+        valElem.textContent = '₹' + Number((data.totalWinningsPaise || 0) / 100)
+          .toLocaleString('en-IN', { maximumFractionDigits: 0 });
+      if (label === 'CURRENT TIER')
+        valElem.textContent = data.vipTier || 'STANDARD';
+    });
+    // profile.html: user specific data
+    const upName = document.querySelector('.up-name');
+    if (upName) upName.textContent = data.gamesPlayed + ' Games Played';
+    const profPhone = document.getElementById('prof-phone');
+    if (profPhone) profPhone.value = data.phone || '';
   };
 
   if (cached) {
-    try { renderData(JSON.parse(cached)); } catch(e){}
+    try { renderData(JSON.parse(cached)); } catch (e) { }
   }
 
   try {
     const isResultsPage = window.location.pathname.includes('results');
     const isTransactionsPage = window.location.pathname.includes('transactions');
-    
+
     const reqs = [apiFetch('/api/v1/stats/user')];
     if (!isResultsPage) {
-        reqs.push(apiFetch('/api/v1/game/history?page=0&size=20'));
+      reqs.push(apiFetch('/api/v1/game/history?page=0&size=20'));
     } else {
-        reqs.push(Promise.resolve(null));
+      reqs.push(Promise.resolve(null));
     }
-    
+
     if (isTransactionsPage) {
-        reqs.push(apiFetch('/api/v1/wallet/transactions?page=0&size=20'));
+      reqs.push(apiFetch('/api/v1/wallet/transactions?page=0&size=20'));
     } else {
-        reqs.push(Promise.resolve(null));
+      reqs.push(Promise.resolve(null));
     }
 
     const [res, historyRes, txRes] = await Promise.all(reqs);
@@ -371,18 +400,36 @@ async function fetchUserStats() {
       const deleteAccountBtn = document.getElementById('delete-account-btn');
       if (deleteAccountBtn) {
         deleteAccountBtn.addEventListener('click', async () => {
+          try {
+            const wRes = await apiFetch('/api/v1/wallet');
+            if (wRes && wRes.ok) {
+              const wData = await wRes.json();
+              if ((wData.balancePaise || 0) > 0 || (wData.depositBalancePaise || 0) > 0 || (wData.winningBalancePaise || 0) > 0) {
+                showPopupAlert("Cannot delete account: Please withdraw or play your remaining funds first.", "Deletion Blocked", "🛑");
+                return;
+              }
+            }
+          } catch (e) {
+            console.error("Failed checking wallet before delete", e);
+          }
+
           if (confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
             try {
-              const resDel = await apiFetch('/api/v1/user/me', { method: 'DELETE' });
-              if (resDel.ok) {
+              const resDel = await apiFetch('/api/v1/user/me', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ confirm: 'DELETE_MY_ACCOUNT' })
+              });
+              if (resDel && resDel.ok) {
                 localStorage.removeItem('accessToken');
                 localStorage.removeItem('refreshToken');
                 window.location.href = isSubdir ? '../pages/signin.html' : 'pages/signin.html';
-              } else {
-                alert("Failed to delete account. Please try again.");
+              } else if (resDel) {
+                const errData = await resDel.json().catch(() => ({}));
+                showPopupAlert(errData.error || "Failed to delete account. Please check your balance or try again.", "Error Deleting Account", "⚠️");
               }
             } catch (e) {
-              alert("Error deleting account: " + e.message);
+              showPopupAlert("Error deleting account: " + e.message, "Error", "⚠️");
             }
           }
         });
@@ -419,30 +466,30 @@ async function fetchUserStats() {
 
     // Transactions page — GET /api/v1/wallet/transactions?page=0&size=20
     if (txRes && txRes.ok) {
-        const txData = await txRes.json();
-        const txTable = document.querySelector('.history-table');
-        if (txTable && txData.content && txData.content.length > 0) {
-          txTable.innerHTML = `<div class="ht-header"><span>Type</span><span>Amount</span><span>Date</span></div>`
-            + txData.content.map(tx => {
-              const isCredit = tx.type === 'BET_WON' || tx.type === 'DEPOSIT' || tx.type === 'REFUND';
-              const label = {
-                BET_PLACED: 'Bet Placed', BET_WON: 'Bet Won', BET_LOST: 'Bet Lost',
-                DEPOSIT: 'Deposit', WITHDRAWAL: 'Withdrawal', REFUND: 'Refund'
-              }[tx.type] || tx.type;
-              const sign = isCredit ? '+' : '-';
-              const cls = isCredit ? 'ht-val--green' : 'ht-val--brown';
-              const date = new Date(tx.createdAt).toLocaleDateString('en-IN',
-                { day: '2-digit', month: 'short', year: 'numeric' });
-              return `
+      const txData = await txRes.json();
+      const txTable = document.querySelector('.history-table');
+      if (txTable && txData.content && txData.content.length > 0) {
+        txTable.innerHTML = `<div class="ht-header"><span>Type</span><span>Amount</span><span>Date</span></div>`
+          + txData.content.map(tx => {
+            const isCredit = tx.type === 'BET_WON' || tx.type === 'DEPOSIT' || tx.type === 'REFUND';
+            const label = {
+              BET_PLACED: 'Bet Placed', BET_WON: 'Bet Won', BET_LOST: 'Bet Lost',
+              DEPOSIT: 'Deposit', WITHDRAWAL: 'Withdrawal', REFUND: 'Refund'
+            }[tx.type] || tx.type;
+            const sign = isCredit ? '+' : '-';
+            const cls = isCredit ? 'ht-val--green' : 'ht-val--brown';
+            const date = new Date(tx.createdAt).toLocaleDateString('en-IN',
+              { day: '2-digit', month: 'short', year: 'numeric' });
+            return `
                 <div class="ht-row">
                   <span class="ht-val">${label}</span>
                   <span class="ht-val ${cls}">${sign}₹${Number(Math.abs(tx.amountPaise) / 100)
-                  .toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                .toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
                   <span class="ht-val" style="color:#999;font-size:10px;">${date}</span>
                 </div>`;
-            }).join('');
-        }
+          }).join('');
       }
+    }
   } catch (e) {
     console.error('Error fetching user stats', e);
   }
@@ -512,7 +559,7 @@ function setupPanel(bird, chips, input, btn) {
     chip.addEventListener('click', () => {
       if (STATE.phase !== 'BETTING') return showToast('Betting is locked!');
       if (STATE.bets[bird] && STATE.bets[bird].amount > 0) return showToast('Cancel your current bet first to change the amount!');
-      
+
       STATE.panelBetAmounts[bird] = +chip.dataset.amt;
       chips.forEach(c => c.classList.remove('chip--selected'));
       chip.classList.add('chip--selected');
@@ -522,6 +569,14 @@ function setupPanel(bird, chips, input, btn) {
     });
   });
   if (input) {
+    input.addEventListener('keydown', (e) => {
+      if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) || e.ctrlKey || e.metaKey) {
+        return;
+      }
+      if (!/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+      }
+    });
     input.addEventListener('input', () => {
       if (STATE.bets[bird] && STATE.bets[bird].amount > 0) {
         input.value = STATE.panelBetAmounts[bird] || '';
@@ -552,7 +607,7 @@ function setupPanel(bird, chips, input, btn) {
 function selectRow(bird, row) {
   if (STATE.phase !== 'BETTING') return showToast('Betting is locked!');
   STATE.selectedRows[bird] = row;
-  
+
   // IMMEDIATELY render board to show selection, regardless of whether a bet exists
   renderBoard();
 
@@ -1005,54 +1060,54 @@ function resetRound() {
   if (DOM.manualAmtMena) { DOM.manualAmtMena.disabled = false; DOM.manualAmtMena.value = ''; }
   $$('.chip').forEach(c => c.classList.remove('chip--selected'));
   STATE.panelBetAmounts = { tota: 0, mena: 0 };
-  
+
   closeWin();
 
   if (DOM.allCells) {
     DOM.allCells.forEach(cell => {
       const wasWinner = cell.classList.contains('cell--winner');
 
-    cell.removeAttribute('data-active');
-    cell.removeAttribute('data-win');
-    cell.classList.remove('cell--winner');
+      cell.removeAttribute('data-active');
+      cell.removeAttribute('data-win');
+      cell.classList.remove('cell--winner');
 
-    const betBadge = cell.querySelector('.cell-bet');
-    if (betBadge) { betBadge.style.display = 'none'; betBadge.textContent = ''; }
+      const betBadge = cell.querySelector('.cell-bet');
+      if (betBadge) { betBadge.style.display = 'none'; betBadge.textContent = ''; }
 
-    const tempElems = cell.querySelectorAll('.card-half, .shatter-flash');
-    tempElems.forEach(el => el.remove());
+      const tempElems = cell.querySelectorAll('.card-half, .shatter-flash');
+      tempElems.forEach(el => el.remove());
 
-    const birdImg = cell.querySelector('.bird');
-    if (wasWinner && birdImg) {
-      // Replay the shatter effect to hide the bird
-      const leftHalf = document.createElement('div');
-      leftHalf.className = 'card-half card-half--left';
-      const rightHalf = document.createElement('div');
-      rightHalf.className = 'card-half card-half--right';
-      const flash = document.createElement('div');
-      flash.className = 'shatter-flash';
+      const birdImg = cell.querySelector('.bird');
+      if (wasWinner && birdImg) {
+        // Replay the shatter effect to hide the bird
+        const leftHalf = document.createElement('div');
+        leftHalf.className = 'card-half card-half--left';
+        const rightHalf = document.createElement('div');
+        rightHalf.className = 'card-half card-half--right';
+        const flash = document.createElement('div');
+        flash.className = 'shatter-flash';
 
-      cell.appendChild(leftHalf);
-      cell.appendChild(rightHalf);
-      cell.appendChild(flash);
+        cell.appendChild(leftHalf);
+        cell.appendChild(rightHalf);
+        cell.appendChild(flash);
 
-      // Hide the bird at the exact moment of the flash
-      setTimeout(() => {
+        // Hide the bird at the exact moment of the flash
+        setTimeout(() => {
+          birdImg.style.opacity = '0';
+          birdImg.style.transform = 'translate(-50%, -50%) scale(0.4)';
+        }, 150);
+
+        // Clean up the DOM after animation finishes
+        setTimeout(() => {
+          leftHalf.remove();
+          rightHalf.remove();
+          flash.remove();
+        }, 1000);
+      } else if (birdImg) {
         birdImg.style.opacity = '0';
         birdImg.style.transform = 'translate(-50%, -50%) scale(0.4)';
-      }, 150);
-
-      // Clean up the DOM after animation finishes
-      setTimeout(() => {
-        leftHalf.remove();
-        rightHalf.remove();
-        flash.remove();
-      }, 1000);
-    } else if (birdImg) {
-      birdImg.style.opacity = '0';
-      birdImg.style.transform = 'translate(-50%, -50%) scale(0.4)';
-    }
-  });
+      }
+    });
   }
 
   renderBoard();
@@ -1252,7 +1307,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const cacheKey = 'cache_/api/v1/stats/history';
       const cached = sessionStorage.getItem(cacheKey);
       if (cached) {
-        try { renderRecentResultsTable(JSON.parse(cached), table); } catch(e){}
+        try { renderRecentResultsTable(JSON.parse(cached), table); } catch (e) { }
       }
       try {
         const res = await apiFetch('/api/v1/stats/history');
@@ -1266,7 +1321,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const cacheKey = 'cache_/api/v1/game/history?page=0&size=20';
       const cached = sessionStorage.getItem(cacheKey);
       if (cached) {
-        try { renderMyBetsTable(JSON.parse(cached).content || [], table); } catch(e){}
+        try { renderMyBetsTable(JSON.parse(cached).content || [], table); } catch (e) { }
       }
       try {
         const res = await apiFetch('/api/v1/game/history?page=0&size=20');
@@ -1571,4 +1626,54 @@ async function loadSupportTickets() {
 
 if (window.location.pathname.includes('support.html')) {
   loadSupportTickets();
+}
+
+async function loadLoginHistory() {
+  const container = document.getElementById('login-history-list');
+  if (!container) return;
+  try {
+    const res = await apiFetch('/api/v1/user/login-history');
+    if (!res || !res.ok) {
+      container.innerHTML = `<div style="color: var(--text-muted); font-size: 13px; padding: 12px 0;">No login records found yet.</div>`;
+      return;
+    }
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      container.innerHTML = `<div style="color: var(--text-muted); font-size: 13px; padding: 12px 0;">No recent login history recorded yet. Future logins will appear here!</div>`;
+      return;
+    }
+
+    container.innerHTML = data.map((item, index) => {
+      const isMobile = item.deviceName && (item.deviceName.toLowerCase().includes('phone') || item.deviceName.toLowerCase().includes('android') || item.deviceName.toLowerCase().includes('ipad') || item.deviceName.toLowerCase().includes('mobile'));
+      const iconSvg = isMobile
+        ? `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>`
+        : `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>`;
+
+      const dateStr = item.loggedInAt ? new Date(item.loggedInAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Just now';
+      const ipDisplay = item.ipAddress ? `IP: ${item.ipAddress}` : 'Secured IP';
+      const activeBadge = index === 0 ? `<div class="device-status-badge">● Current Session</div>` : ``;
+
+      return `
+        <div class="login-device-item">
+          <div class="device-left">
+            <div class="device-icon-wrap">${iconSvg}</div>
+            <div class="device-info">
+              <div class="device-name">${item.deviceName || 'Unknown Device'}</div>
+              <div class="device-meta">
+                <span>${ipDisplay}</span> • <span>${dateStr}</span>
+              </div>
+            </div>
+          </div>
+          ${activeBadge}
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    console.error("Failed to load login history", e);
+    container.innerHTML = `<div style="color: #d32f2f; font-size: 13px; padding: 12px 0;">Could not load login history.</div>`;
+  }
+}
+
+if (window.location.pathname.includes('profile.html')) {
+  loadLoginHistory();
 }

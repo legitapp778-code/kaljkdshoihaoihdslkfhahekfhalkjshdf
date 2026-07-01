@@ -1,6 +1,7 @@
 package com.totemena.elite.user;
 
 import com.totemena.elite.auth.AuthService;
+import com.totemena.elite.auth.LoginHistoryRepository;
 import com.totemena.elite.user.dto.UpdateProfileRequest;
 import com.totemena.elite.wallet.Wallet;
 import com.totemena.elite.wallet.WalletRepository;
@@ -25,6 +26,12 @@ public class UserController {
     private final UserRepository userRepository;
     private final WalletRepository walletRepository;
     private final AuthService authService;
+    private final LoginHistoryRepository loginHistoryRepository;
+
+    @GetMapping("/login-history")
+    public ResponseEntity<?> getLoginHistory(@AuthenticationPrincipal User authUser) {
+        return ResponseEntity.ok(loginHistoryRepository.findTop20ByUserIdOrderByLoggedInAtDesc(authUser.getId()));
+    }
 
     @GetMapping("/me")
     public ResponseEntity<?> getMe(@AuthenticationPrincipal User authUser) {
@@ -65,10 +72,9 @@ public class UserController {
 
         // Block deletion if user has pending bets or positive balance
         Wallet wallet = walletRepository.findByUserId(user.getId()).orElse(null);
-        if (wallet != null && wallet.getBalancePaise() > 0) {
+        if (wallet != null && (wallet.getBalancePaise() > 0 || wallet.getDepositBalancePaise() > 0 || wallet.getWinningBalancePaise() > 0)) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(
-                Map.of("error", "Cannot delete account with remaining balance. " +
-                                "Please withdraw all funds first.")
+                Map.of("error", "Cannot delete account when balance (winning + deposited amount) is greater than zero. Please withdraw or use your funds first.")
             );
         }
 

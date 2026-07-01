@@ -91,7 +91,11 @@
     });
 
     phoneInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter' && !reqOtpBtn.disabled) reqOtpBtn.click();
+      if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) || e.ctrlKey || e.metaKey) {
+        if (e.key === 'Enter' && !reqOtpBtn.disabled) reqOtpBtn.click();
+        return;
+      }
+      if (!/^[0-9]$/.test(e.key)) e.preventDefault();
     });
 
     reqOtpBtn.addEventListener('click', async () => {
@@ -158,12 +162,16 @@
           checkComplete();
         });
         box.addEventListener('keydown', e => {
-          if (e.key === 'Backspace' && !e.target.value && i > 0) {
-            boxes[i - 1].focus();
-            boxes[i - 1].value = '';
-            checkComplete();
+          if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) || e.ctrlKey || e.metaKey) {
+            if (e.key === 'Backspace' && !e.target.value && i > 0) {
+              boxes[i - 1].focus();
+              boxes[i - 1].value = '';
+              checkComplete();
+            }
+            if (e.key === 'Enter' && !verifyOtpBtn.disabled) verifyOtpBtn.click();
+            return;
           }
-          if (e.key === 'Enter' && !verifyOtpBtn.disabled) verifyOtpBtn.click();
+          if (!/^[0-9]$/.test(e.key)) e.preventDefault();
         });
         // Handle paste
         box.addEventListener('paste', e => {

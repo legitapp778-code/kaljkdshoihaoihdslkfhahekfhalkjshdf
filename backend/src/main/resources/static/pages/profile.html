@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -24,8 +24,7 @@
       <img src="../assets/logo.webp" alt="Tota & Mena" class="header-logo">
       <div class="header-right">
         <div class="balance-pill">
-          <span class="balance-val">₹<span id="coins-val">Ã¢₹‚¬₹€</span></span>
-          
+          <span class="balance-val">₹<span id="coins-val">0.00</span></span>
         </div>
         <button class="icon-btn notif-btn">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
@@ -33,7 +32,7 @@
         </button>
         <div class="user-profile">
           <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23c9a04c'%3E%3Ccircle cx='12' cy='7' r='4'/%3E%3Cpath d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'/%3E%3C/svg%3E" alt="User" class="user-avatar">
-          <span class="user-name">Ã¢₹‚¬₹€</span>
+          <span class="user-name">Loading...</span>
           <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </div>
       </div>
@@ -85,31 +84,65 @@
       </aside>
 
       <main class="main-column main-scroll">
-      <div class="page-container">
+      <div class="page-container" style="background: transparent; border: none; box-shadow: none; padding: 0;">
         
-        <div class="profile-section">
-          <div class="prof-avatar-wrap" style="position: relative;">
-            <div class="prof-avatar">Ã¢₹‚¬₹€</div>
-            <div class="kyc-badge" style="position: absolute; bottom: 40px; transform: translateY(50%);">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-              Verified
-            </div>
-            <div class="prof-name" style="margin-top: 16px;">Ã¢₹‚¬₹€</div>
-            <div class="prof-id">ID: Ã¢₹‚¬₹€</div>
-          </div>
-
-          <h3 class="section-title">Personal Details</h3>
-          <div class="prof-fields">
-            <div class="prof-field">
-              <label>Phone Number</label>
-              <input type="text" id="prof-phone" value="" readonly>
+        <!-- VIP HERO CARD -->
+        <div class="profile-hero-card">
+          <div class="prof-avatar-wrap">
+            <div class="prof-avatar">VIP</div>
+            <div class="kyc-badge">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              Verified Elite
             </div>
           </div>
+          <div class="prof-name">Member</div>
+          <div class="prof-id">ID: ELITE-888</div>
+        </div>
 
-          <h3 class="section-title">Account Actions</h3>
-          <div class="prof-fields" style="display: flex; gap: 16px;">
-            <button class="btn-primary logout-btn" style="flex: 1;">Logout</button>
-            <button class="btn-primary" id="delete-account-btn" style="flex: 1; background: var(--mena-brown);">Delete Account</button>
+        <!-- PERSONAL DETAILS CARD -->
+        <div class="profile-card-section">
+          <div class="prof-sec-heading">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            Personal Credentials
+          </div>
+          <div class="prof-input-group">
+            <label class="prof-label">Registered Phone Number</label>
+            <div class="prof-input-wrap">
+              <input type="text" id="prof-phone" value="Loading..." readonly>
+              <div class="prof-verified-pill">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                Secured
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- LOGIN HISTORY CARD -->
+        <div class="profile-card-section">
+          <div class="prof-sec-heading">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><circle cx="12" cy="11" r="3"></circle></svg>
+            Recent Login Activity & Devices
+          </div>
+          <div id="login-history-list" class="login-history-list">
+            <div style="color: var(--text-muted); font-size: 13px; padding: 12px 0;">Loading security log...</div>
+          </div>
+        </div>
+
+        <!-- ACCOUNT ACTIONS CARD -->
+        <div class="profile-card-section">
+          <div class="prof-sec-heading">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            Account & Security Actions
+          </div>
+          <div class="prof-actions-grid">
+            <button class="btn-prof-logout logout-btn">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              Sign Out Securely
+            </button>
+            <button class="btn-prof-delete" id="delete-account-btn">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+              Delete Account
+            </button>
           </div>
         </div>
 
@@ -209,7 +242,7 @@
   <div class="win-overlay" id="winOverlay" aria-hidden="true">
     <div class="win-overlay__bg"></div>
     <div class="win-overlay__content">
-      <div class="win-overlay__crown">Ã°Å¸₹€˜₹€˜</div>
+      <div class="win-overlay__crown">👑</div>
       
         <div id="winRowsDisplay" style="font-size:14px; font-weight:600; margin-bottom:12px; line-height:1.6; text-shadow: 0 1px 3px rgba(0,0,0,0.5);"></div>
       <div class="win-overlay__amount" id="winAmtDisplay">₹0</div>

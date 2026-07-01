@@ -40,7 +40,7 @@ public class AuthController {
     }
 
     @PostMapping("/verify-otp")
-    public ResponseEntity<?> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
+    public ResponseEntity<?> verifyOtp(@Valid @RequestBody VerifyOtpRequest request, HttpServletRequest httpRequest) {
         if (Boolean.TRUE.equals(request.getIsSignIn())) {
             if (userRepository.findByPhone(request.getPhone()).isEmpty()) {
                 return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND)
@@ -53,7 +53,18 @@ public class AuthController {
                         .body(Map.of("error", "All fields (Full Name, Email, Mobile) are required for Sign Up!"));
             }
         }
-        return ResponseEntity.ok(authService.verifyOtp(request));
+        String ip = getClientIp(httpRequest);
+        String userAgent = httpRequest.getHeader("User-Agent");
+        return ResponseEntity.ok(authService.verifyOtp(request, ip, userAgent));
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        if (request == null) return null;
+        String xfHeader = request.getHeader("X-Forwarded-For");
+        if (xfHeader != null && !xfHeader.isEmpty() && !"unknown".equalsIgnoreCase(xfHeader)) {
+            return xfHeader.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 
     @PostMapping("/refresh")

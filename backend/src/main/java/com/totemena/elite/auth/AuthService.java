@@ -109,7 +109,7 @@ public class AuthService {
                     .build();
             loginHistoryRepository.save(history);
         } catch (Exception e) {
-            log.warn("Failed to record login history: {}", e.getMessage());
+            log.warn("Failed to record login history due to database error");
         }
 
         return generateTokens(user);
@@ -224,6 +224,7 @@ public class AuthService {
                 }
                 if (userId != null) {
                     redisTemplate.delete("user:cache:" + userId);
+                    redisTemplate.delete("user:active_session:" + userId);
                 }
             }
         } catch (Exception ignored) {
@@ -232,7 +233,24 @@ public class AuthService {
     }
 
     private TokenResponse generateTokens(User user) {
+        // Single-Device Enforcement: Revoke past refresh tokens in database
+        try {
+            refreshTokenRepository.revokeAllByUserId(user.getId());
+        } catch (Exception ignored) {}
+
         String accessToken = jwtService.generateAccessToken(user.getId(), user.getPhone());
+        String jti = jwtService.extractJti(accessToken);
+
+        // Revoke any previous active JWT session in Redis immediately
+        String sessionKey = "user:active_session:" + user.getId();
+        try {
+            String oldJti = redisTemplate.opsForValue().get(sessionKey);
+            if (oldJti != null && !oldJti.equals(jti)) {
+                redisTemplate.opsForValue().set("jwt:revoked:" + oldJti, "true", jwtConfig.getAccessExpiryMs(), TimeUnit.MILLISECONDS);
+            }
+            redisTemplate.opsForValue().set(sessionKey, jti, jwtConfig.getRefreshExpiryMs(), TimeUnit.MILLISECONDS);
+        } catch (Exception ignored) {}
+
         String plainRefreshToken = UUID.randomUUID().toString() + UUID.randomUUID().toString();
         String hash = hashToken(plainRefreshToken);
 

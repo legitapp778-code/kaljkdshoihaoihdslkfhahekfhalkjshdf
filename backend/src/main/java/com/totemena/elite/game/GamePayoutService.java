@@ -83,7 +83,7 @@ public class GamePayoutService {
                         balance, 0L, roundIdStr, "BET_LOST", mult);
                 }
             } catch (Exception e) {
-                log.error("Error processing payout for bet {}: {}", bet.getId(), e.getMessage(), e);
+                log.error("Error processing payout for bet reference ID {}", bet.getId());
             }
         }
 

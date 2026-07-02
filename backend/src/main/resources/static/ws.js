@@ -41,15 +41,18 @@ window.stompClient = new window.StompJs.Client({
 
   onStompError: async (frame) => {
     console.error('STOMP error', frame);
-    if (frame.headers.message?.includes('expired')) {
-        console.log("Token expired, refreshing...");
+    const msg = (frame.headers.message || '').toLowerCase();
+    if (msg.includes('expired') || msg.includes('invalid') || msg.includes('unauthorized') || msg.includes('revoked')) {
+        console.log("Token invalid or expired, refreshing...");
         await refreshAccessToken();
-        // Update headers and reconnect
-        window.stompClient.connectHeaders = {
-            Authorization: `Bearer ${localStorage.getItem('accessToken')}`
-        };
-        window.stompClient.webSocketFactory = () => new SockJS(`/ws?token=${localStorage.getItem('accessToken')}`);
-        window.stompClient.activate();
+        // Update headers and reconnect if token was successfully refreshed
+        if (localStorage.getItem('accessToken')) {
+            window.stompClient.connectHeaders = {
+                Authorization: `Bearer ${localStorage.getItem('accessToken')}`
+            };
+            window.stompClient.webSocketFactory = () => new SockJS(`/ws?token=${localStorage.getItem('accessToken')}`);
+            window.stompClient.activate();
+        }
     }
   }
 });
@@ -57,10 +60,21 @@ window.stompClient = new window.StompJs.Client({
 // Configure automatic reconnect
 window.stompClient.reconnectDelay = 5000;
 
+function wsForceSignOut() {
+    if (window.forceSignOut) {
+        window.forceSignOut();
+    } else {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        const isSubdir = window.location.pathname.includes('/pages/');
+        window.location.href = isSubdir ? 'signin.html' : 'pages/signin.html';
+    }
+}
+
 async function refreshAccessToken() {
     const refreshToken = localStorage.getItem('refreshToken');
     if (!refreshToken) {
-        window.location.href = '/pages/signin.html';
+        wsForceSignOut();
         return;
     }
     try {
@@ -74,12 +88,11 @@ async function refreshAccessToken() {
             localStorage.setItem('accessToken', data.accessToken);
             localStorage.setItem('refreshToken', data.refreshToken);
         } else {
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('refreshToken');
-            window.location.href = '/pages/signin.html';
+            wsForceSignOut();
         }
     } catch (e) {
         console.error("Failed to refresh token", e);
+        wsForceSignOut();
     }
 }
 

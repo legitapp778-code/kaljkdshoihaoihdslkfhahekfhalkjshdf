@@ -49,6 +49,14 @@ public class JwtService {
             if (Boolean.TRUE.equals(redisTemplate.hasKey("jwt:revoked:" + jti))) {
                 return false;
             }
+            // Check single-device active session
+            String userId = claims.getSubject();
+            if (userId != null) {
+                String activeJti = redisTemplate.opsForValue().get("user:active_session:" + userId);
+                if (activeJti != null && !activeJti.equals(jti)) {
+                    return false;
+                }
+            }
             return !claims.getExpiration().before(new Date());
         } catch (Exception e) {
             return false;

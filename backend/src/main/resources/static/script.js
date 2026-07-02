@@ -642,14 +642,9 @@ async function placeBet(bird) {
   updateBetButtonStates();
   renderBoard();
 
-  const token = localStorage.getItem('accessToken');
   try {
-    const res = await fetch('/api/v1/game/bet', {
+    const res = await apiFetch('/api/v1/game/bet', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
       body: JSON.stringify({
         bird: bird,
         selectedRow: row,
@@ -660,6 +655,7 @@ async function placeBet(bird) {
         }))
       })
     });
+    if (!res) return;
     if (!res.ok) {
       const data = await res.json();
       throw new Error(data.error || 'Failed to place bet');
@@ -693,12 +689,11 @@ async function cancelBet(bird) {
     btn.disabled = true;
   }
 
-  const token = localStorage.getItem('accessToken');
   try {
-    const res = await fetch(`/api/v1/game/bet/${bird}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${token}` }
+    const res = await apiFetch(`/api/v1/game/bet/${bird}`, {
+      method: 'DELETE'
     });
+    if (!res) return;
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       showToast(data.error || data.message || 'Failed to cancel bet');
@@ -822,9 +817,10 @@ window.syncStateOnReconnect = async function () {
 
   try {
     const [walletRes, currentRes] = await Promise.all([
-      fetch('/api/v1/wallet', { headers: { 'Authorization': `Bearer ${token}` } }),
-      fetch('/api/v1/game/current', { headers: { 'Authorization': `Bearer ${token}` } })
+      apiFetch('/api/v1/wallet'),
+      apiFetch('/api/v1/game/current')
     ]);
+    if (!walletRes || !currentRes) return;
 
     if (walletRes.ok) {
       const data = await walletRes.json();
@@ -1158,7 +1154,8 @@ async function fetchBalance() {
   const token = localStorage.getItem('accessToken');
   if (!token) return;
   try {
-    const res = await fetch('/api/v1/wallet', { headers: { 'Authorization': `Bearer ${token}` } });
+    const res = await apiFetch('/api/v1/wallet');
+    if (!res) return;
     if (res.ok) {
       const data = await res.json();
       const prev = STATE.balancePaise;

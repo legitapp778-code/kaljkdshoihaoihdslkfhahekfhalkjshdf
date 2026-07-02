@@ -7,12 +7,20 @@ function authHeaders() {
   };
 }
 
+function forceSignOut() {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  const isSubdir = window.location.pathname.includes('/pages/');
+  window.location.href = isSubdir ? 'signin.html' : 'pages/signin.html';
+}
+window.forceSignOut = forceSignOut;
+
 async function apiFetch(path, options = {}) {
   const res = await fetch(BASE + path, {
     ...options,
     headers: { ...authHeaders(), ...(options.headers || {}) }
   });
-  if (res.status === 401) {
+  if (res.status === 401 || res.status === 403) {
     // Try refresh
     const refreshToken = localStorage.getItem('refreshToken');
     if (refreshToken) {
@@ -26,15 +34,18 @@ async function apiFetch(path, options = {}) {
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
         // Retry original request
-        return fetch(BASE + path, {
+        const retriedRes = await fetch(BASE + path, {
           ...options,
           headers: { ...authHeaders(), ...(options.headers || {}) }
         });
+        if (retriedRes.status === 401 || retriedRes.status === 403) {
+          forceSignOut();
+          return null;
+        }
+        return retriedRes;
       }
     }
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    window.location.href = '/pages/signin.html';
+    forceSignOut();
     return null;
   }
   return res;

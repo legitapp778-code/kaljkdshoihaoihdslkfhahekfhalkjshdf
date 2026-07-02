@@ -155,10 +155,9 @@ public class GameScheduler {
         cachedPhase = "SPINNING";
         cachedStartedAt = System.currentTimeMillis();
         
-        short winTota = (short) (random.nextInt(5) + 1);
-        short winMena = (short) (random.nextInt(5) + 1);
-        cachedWinTota = winTota;
-        cachedWinMena = winMena;
+        calculateLeastBetRows(roundIdStr);
+        short winTota = cachedWinTota;
+        short winMena = cachedWinMena;
 
         redisTemplate.opsForValue().set("game:round:" + roundIdStr + ":phase", cachedPhase, 120, TimeUnit.SECONDS);
         redisTemplate.opsForValue().set("game:round:" + roundIdStr + ":started_at", String.valueOf(cachedStartedAt), 120, TimeUnit.SECONDS);
@@ -168,14 +167,16 @@ public class GameScheduler {
         gameBroadcastService.broadcastPhaseChange(roundIdStr, cachedPhase);
         log.info("Round {} entered SPINNING phase", roundIdStr);
 
+        final short finalWinTota = winTota;
+        final short finalWinMena = winMena;
         CompletableFuture.runAsync(() -> {
             try {
                 UUID roundId = UUID.fromString(roundIdStr);
                 Round round = roundRepository.findById(roundId).orElse(null);
                 if (round != null && "BETTING".equals(round.getStatus())) {
                     round.setStatus("SPINNING");
-                    round.setWinningRowTota(winTota);
-                    round.setWinningRowMena(winMena);
+                    round.setWinningRowTota(finalWinTota);
+                    round.setWinningRowMena(finalWinMena);
                     round.setSpinningAt(Instant.now());
                     roundRepository.save(round);
                 }
@@ -183,6 +184,43 @@ public class GameScheduler {
                 log.error("Async transitionToSpinning DB update failed", e);
             }
         });
+    }
+
+    private void calculateLeastBetRows(String roundIdStr) {
+        long[] totaBets = new long[6];
+        long[] menaBets = new long[6];
+
+        try {
+            java.util.List<Bet> roundBets = betRepository.findByRoundId(UUID.fromString(roundIdStr));
+            for (Bet bet : roundBets) {
+                if ("tota".equalsIgnoreCase(bet.getBird()) && bet.getSelectedRow() >= 1 && bet.getSelectedRow() <= 5) {
+                    totaBets[bet.getSelectedRow()] += bet.getAmountPaise();
+                } else if ("mena".equalsIgnoreCase(bet.getBird()) && bet.getSelectedRow() >= 1 && bet.getSelectedRow() <= 5) {
+                    menaBets[bet.getSelectedRow()] += bet.getAmountPaise();
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error calculating round outcome for round {}", roundIdStr, e);
+        }
+
+        cachedWinTota = getLeastBetCandidate(totaBets);
+        cachedWinMena = getLeastBetCandidate(menaBets);
+    }
+
+    private short getLeastBetCandidate(long[] rowBets) {
+        long minAmount = Long.MAX_VALUE;
+        for (int r = 1; r <= 5; r++) {
+            if (rowBets[r] < minAmount) {
+                minAmount = rowBets[r];
+            }
+        }
+        java.util.List<Short> candidates = new java.util.ArrayList<>();
+        for (short r = 1; r <= 5; r++) {
+            if (rowBets[r] == minAmount) {
+                candidates.add(r);
+            }
+        }
+        return candidates.get(random.nextInt(candidates.size()));
     }
 
     protected void finishRound() {

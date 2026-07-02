@@ -2803,7 +2803,7 @@ input:checked+.toggle-slider:before {
 /* Summary Grid */
 .home-summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 16px;
 }
 

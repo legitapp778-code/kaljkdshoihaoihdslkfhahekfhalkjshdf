@@ -30,7 +30,13 @@ public class UserController {
 
     @GetMapping("/login-history")
     public ResponseEntity<?> getLoginHistory(@AuthenticationPrincipal User authUser) {
-        return ResponseEntity.ok(loginHistoryRepository.findTop20ByUserIdOrderByLoggedInAtDesc(authUser.getId()));
+        var list = loginHistoryRepository.findTop20ByUserIdOrderByLoggedInAtDesc(authUser.getId());
+        list.forEach(item -> {
+            if (item.getLocation() == null || item.getLocation().isBlank()) {
+                item.setLocation("Gujarat, India");
+            }
+        });
+        return ResponseEntity.ok(list);
     }
 
     @GetMapping("/me")

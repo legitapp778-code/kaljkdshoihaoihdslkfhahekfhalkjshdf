@@ -27,6 +27,9 @@ public class LoginHistory {
     @Column(name = "ip_address", length = 64)
     private String ipAddress;
 
+    @Column(name = "location", length = 100)
+    private String location;
+
     @Column(name = "user_agent", length = 500)
     private String userAgent;
 

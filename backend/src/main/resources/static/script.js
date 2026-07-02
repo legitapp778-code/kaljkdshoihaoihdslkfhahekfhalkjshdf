@@ -1650,7 +1650,7 @@ async function loadLoginHistory() {
         : `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>`;
 
       const dateStr = item.loggedInAt ? new Date(item.loggedInAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Just now';
-      const ipDisplay = item.ipAddress ? `IP: ${item.ipAddress}` : 'Secured IP';
+      const stateDisplay = item.location || 'Gujarat, India';
       const activeBadge = index === 0 ? `<div class="device-status-badge">● Current Session</div>` : ``;
 
       return `
@@ -1660,7 +1660,7 @@ async function loadLoginHistory() {
             <div class="device-info">
               <div class="device-name">${item.deviceName || 'Unknown Device'}</div>
               <div class="device-meta">
-                <span>${ipDisplay}</span> • <span>${dateStr}</span>
+                <span>📍 ${stateDisplay}</span> • <span>${dateStr}</span>
               </div>
             </div>
           </div>

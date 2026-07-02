@@ -98,10 +98,12 @@ public class AuthService {
         }
 
         try {
+            String stateLocation = resolveStateFromIp(ipAddress);
             LoginHistory history = LoginHistory.builder()
                     .user(user)
                     .deviceName(parseDeviceName(userAgent))
                     .ipAddress(ipAddress != null && ipAddress.length() > 64 ? ipAddress.substring(0, 64) : ipAddress)
+                    .location(stateLocation)
                     .userAgent(userAgent != null && userAgent.length() > 500 ? userAgent.substring(0, 500) : userAgent)
                     .loggedInAt(Instant.now())
                     .build();
@@ -111,6 +113,33 @@ public class AuthService {
         }
 
         return generateTokens(user);
+    }
+
+    private String resolveStateFromIp(String ip) {
+        if (ip == null || ip.isBlank() || "127.0.0.1".equals(ip) || "0:0:0:0:0:0:0:1".equals(ip) || ip.startsWith("192.168.") || ip.startsWith("10.")) {
+            return "Gujarat, India";
+        }
+        try {
+            java.net.URL url = new java.net.URL("http://ip-api.com/json/" + ip + "?fields=status,regionName");
+            java.net.HttpURLConnection con = (java.net.HttpURLConnection) url.openConnection();
+            con.setConnectTimeout(1500);
+            con.setReadTimeout(1500);
+            if (con.getResponseCode() == 200) {
+                try (java.io.InputStream in = con.getInputStream()) {
+                    String json = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                    if (json.contains("\"status\":\"success\"") && json.contains("\"regionName\":\"")) {
+                        int idx = json.indexOf("\"regionName\":\"") + 14;
+                        int endIdx = json.indexOf("\"", idx);
+                        if (endIdx > idx) {
+                            String region = json.substring(idx, endIdx);
+                            return region + ", India";
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return "Gujarat, India";
     }
 
     private String parseDeviceName(String userAgent) {
